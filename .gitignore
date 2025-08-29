@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Config file - with full paths
+config.env
+
+# Files with sensitive data
+# (...)
