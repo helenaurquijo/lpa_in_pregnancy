@@ -51,5 +51,5 @@ rsconnect/
 # Config file - with full paths
 config.env
 
-# Files with sensitive data
-# (...)
+# Files with sensitive data or script outputs
+rsids.txt

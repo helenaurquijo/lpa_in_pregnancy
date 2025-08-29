@@ -10,6 +10,7 @@
 # Another script will identify proxies as not all of these are available in the 
 # outcome datasets.
 ##
+
 print(Sys.time())
 
 library(data.table)
@@ -63,11 +64,11 @@ print(head(exp_dat))
 setwd(paste0(projectdir, "/data/exposures/instruments/"))
 
 # 29 IVs from the paper
-fwrite(exp_dat, file = "ivs_original_lpa.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+fwrite(exp_dat, file = "exp_dat_main_lpa.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 # list of SNPs for proxy lookup
 rsids <- data.frame(exp_dat$SNP)
-fwrite(rsids, file = "main_lpa_ivs.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+fwrite(rsids, file = "rsids_main_lpa.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 ## 2) Mack et al. 2017
 

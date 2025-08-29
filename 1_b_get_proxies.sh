@@ -15,7 +15,7 @@ source scripts/config.env
 echo "Script run at: $(date '+%Y-%m-%d %H:%M:%S')"
 
 refpan=${mrpregdir}/results/UKB_10k/ukb_eur_10k
-rsids=${projectdir}/data/exposures/instruments/main_lpa_ivs.txt
+rsids=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt
 window=500
 r2=0.8
 
@@ -24,5 +24,5 @@ plink --bfile ${refpan} \
   --list-all \
   --tag-kb ${window} \
   --tag-r2 ${r2} \
-  --out ${projectdir}/data/exposures/instruments/lpa_snps
+  --out ${projectdir}/data/exposures/instruments/main_lpa
 
