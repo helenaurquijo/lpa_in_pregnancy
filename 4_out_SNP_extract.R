@@ -1,10 +1,12 @@
-############################################################################
-#                                                                          #
-#             Extract SNP-outcome summary data for selected SNPs           #
-#                                                                          #
-############################################################################
+################################################################################
+#               Extract SNP-outcome summary data for selected SNPs             #
+################################################################################
 
-## Script from the p6/159 dir
+##
+# This script extracts SNP-outcome summary data for a list of SNPs from
+# the main IV SNPs as well as its proxies in case they are required.
+##
+
 
 ## Set up
 readRenviron("scripts/config.env")

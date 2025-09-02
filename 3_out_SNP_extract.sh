@@ -1,5 +1,16 @@
 #!/bin/bash
 
+################################################################################
+#               Extract SNP-outcome summary data for selected SNPs             #
+################################################################################
+
+##
+# This scripts formats the final list of SNPs to be extracted fron the MR-PREG
+# summmary statistics and calls the extraction R script. Outouts are moved to
+# a specific folder so that when this script is called again it does not 
+# overwrite this output.
+##
+
 module add languages/R/4.3.3
 
 source scripts/config.env
@@ -20,4 +31,3 @@ done
 
 # Remove temporary files
 rm ${projectdir}/data/tmp_*
-rm ${projectdir}/scripts/tmp_*
