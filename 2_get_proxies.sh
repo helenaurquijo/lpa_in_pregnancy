@@ -12,6 +12,7 @@
 module load plink/1.9-beta6.27-openblas
 source scripts/config.env
 
+echo "Running script: $(basename $0)"
 echo "Script run at: $(date '+%Y-%m-%d %H:%M:%S')"
 
 refpan=${mrpregdir}/results/UKB_10k/ukb_eur_10k
