@@ -63,7 +63,7 @@ print(head(out_dat_pph))
 
 ## Read in, filter and format data
 out_dat_conmal <- fread(Sys.getenv("conmal")) %>%
-  mutate(Phenotype = "con_mal") %>%
+  mutate(Phenotype = "conmal_any") %>%
   filter(SNP %in% rsids$V1) %>%
   data.frame() %>%
   format_data(type = "outcome")

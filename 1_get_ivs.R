@@ -44,6 +44,7 @@ print(head(dat))
 ## Format the data for MR
 exp_dat <- dat %>%
   filter(grepl("^rs", `rsID`)) %>% # filter out rows not start with rs
+  mutate(`rsID` = gsub(":.*", "", `rsID`)) %>% # to improve matching with ref panel 
   rename(
     SNP = `rsID`,
     chr = `scaffold`,
@@ -51,6 +52,7 @@ exp_dat <- dat %>%
     other_allele = `non_effect_allele`,
     beta = `effect_size`,
     se = `stderr`,
+    eaf = `effect_allele_freq`,
     r2 = `variance_explained`,
     pval = `p-value`
   ) %>%
