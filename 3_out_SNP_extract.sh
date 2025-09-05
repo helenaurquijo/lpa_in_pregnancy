@@ -17,7 +17,7 @@ module add languages/R/4.3.3
 
 source scripts/config.env
 
-tags=${projectdir}/data/exposures/instruments/main_lpa.tags
+tags=${projectdir}/data/exposures/instruments/main_lpa_proxies_rsid.txt
 ivs=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt
 
 cat ${tags} ${ivs} | sort | uniq > ${projectdir}/scripts/rsids.txt
