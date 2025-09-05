@@ -11,13 +11,16 @@
 # overwrite this output.
 ##
 
+# Exit immediately if any command fails
+set -e
+
 echo "Running script: $(basename $0)"
 
 module add languages/R/4.3.3
 
 source scripts/config.env
 
-tags=${projectdir}/data/exposures/instruments/main_lpa_proxies_rsid.txt
+tags=${projectdir}/data/exposures/instruments/proxies_rsid_main_lpa.txt
 ivs=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt
 
 cat ${tags} ${ivs} | sort | uniq > ${projectdir}/scripts/rsids.txt
