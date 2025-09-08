@@ -90,20 +90,22 @@ args <- dplyr::select(dat, study, outcome, exposure) %>%
   distinct %>%
   rename(stu = study, out = outcome, gene = exposure)
 
-## order the outcomes 
-order <- out_info$outcome
-
 ## Run MR
 res <- 
   pmap(args, ~run_mr(..1, ..2, ..3, dat)) %>%
   bind_rows() %>%
   left_join(out_info %>% select(outcome, cat), by = "outcome") %>%
   mutate(
-    b = -b, # to reflect the effect of lowering Lp(a)
+    # to reflect the effect of lowering Lp(a) by 10nmol/L
+    b = -b * 10,
+    se = se * 10,
+  ) %>%
+  mutate(
     # Conditionally calculate OR, UCI, and LCI for binary outcomes
     OR = if_else(cat == "bin", exp(b), NA_real_),
     UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
     LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
-    outcome = factor(outcome, levels = order)
+    FDR = p.adjust(pval, method = "fdr")
   )
 
+q("no")

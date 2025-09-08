@@ -309,6 +309,10 @@ run_mr <- function(stu, out, gene, dat) {
   head(df)
   print(dim(df))
 
+  df$F <- (df$beta.exposure^2) / (df$se.exposure^2)
+  F_stat <- mean(df$F)
+  print(paste("Mean F-stat:", round(F_stat, 2)))
+
   ## Return null object if no SNPs selected
   if (nrow(df) == 0) {	
     res2 <- NULL
@@ -334,7 +338,6 @@ run_mr <- function(stu, out, gene, dat) {
     if(!is.null(df2[[1]])) {
       res <- MendelianRandomization::mr_ivw(df2[[1]])
       res2 <- data.frame(
-        exposure = gene,
         study = stu,
         exposure = res$Exposure,
         outcome =  res$Outcome,
@@ -344,7 +347,8 @@ run_mr <- function(stu, out, gene, dat) {
         nsnp =     res$SNPs,
         het_Q =    res$Heter.Stat[1],
         het_pval = res$Heter.Stat[2],
-        method =  "Generalised IVW"
+        method =   "Generalised IVW",
+        F =        F_stat
       )
       print("gIVW successful")
       ### Run Wald ratio (1 SNP) or standard IVW (> 1 SNP) if LD matrix could not be obtained or harmonised
