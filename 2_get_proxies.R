@@ -25,7 +25,7 @@ library(MRutils)
 readRenviron("scripts/config.env")
 projectdir <- Sys.getenv("projectdir")
 
-proxy_cache <- paste0(projectdir, "/data/exposures/proxy_cache/")
+proxy_cache <- paste0(projectdir, "/data/exposures/proxy_cache_EUR/")
 
 ###############################################################################
 # Find proxies for all exposure instruments
@@ -39,7 +39,7 @@ proxies <- MRutils::get_proxies(
   token = Sys.getenv("LDLINK_TOKEN"),
     # request a personal LDlink token here:
     # https://ldlink.nih.gov/?tab=apiaccess
-  population = "CEU",
+  population = "EUR",
   results_dir = proxy_cache,
   skip_api = FALSE,
   r2_threshold = 0.8)
