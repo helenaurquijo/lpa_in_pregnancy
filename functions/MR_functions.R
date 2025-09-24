@@ -216,7 +216,7 @@ harmonise_ld_dat_me <- function (x, ld) {
 }
 
 ################################################################################
-# Function to use local LD matrix data as opposed to the default 1KG3 #
+# Function to use local LD matrix data as opposed to the default 1KG3
 
 ## Adapted from dat_to_MRInput function in TwoSampleMR R package
 
@@ -309,6 +309,7 @@ run_mr <- function(stu, out, gene, dat) {
   head(df)
   print(dim(df))
 
+  # Calculate mean F-stat per analysis
   df$F <- (df$beta.exposure^2) / (df$se.exposure^2)
   F_stat <- mean(df$F)
   print(paste("Mean F-stat:", round(F_stat, 2)))

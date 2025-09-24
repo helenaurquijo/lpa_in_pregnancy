@@ -31,7 +31,7 @@ out_path <- paste0(projectdir, "/data/outcomes")
 out_info <- read_excel(paste0(projectdir,"/scripts/info.xlsx"), sheet = "out")
 
 ################################################################################
-# Run main analysis
+# Load exposure and outcome data
 
 setwd(paste0(projectdir, "/results/main_analysis"))
 
@@ -43,7 +43,9 @@ exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
   as.data.frame() %>%
   format_data(
     type = "exposure",
-    min_pval = .Machine$double.xmin
+    min_pval = .Machine$double.xmin,
+    # storing r2 as info column so it's not lost in format_data
+    info_col = "r2" 
   ) %>%
   mutate(exposure = "LPA")
 
@@ -86,6 +88,9 @@ dat <- harmonise_data(
 print(c("Dat file", dim(dat)))
 # [1] "Dat file" "245"      "36"
 
+################################################################################
+# Run main analysis
+
 args <- dplyr::select(dat, study, outcome, exposure) %>%
   distinct %>%
   rename(stu = study, out = outcome, gene = exposure)
@@ -94,7 +99,7 @@ args <- dplyr::select(dat, study, outcome, exposure) %>%
 res <- 
   pmap(args, ~run_mr(..1, ..2, ..3, dat)) %>%
   bind_rows() %>%
-  left_join(out_info %>% select(outcome, cat), by = "outcome") %>%
+  left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 10nmol/L
     b = -b * 10,
@@ -107,5 +112,29 @@ res <-
     LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
     FDR = p.adjust(pval, method = "fdr")
   )
+
+## Save results
+fwrite(
+  res,
+  file = paste("main_mr_res.txt", sep = "_"),
+  sep = "\t",
+  row.names = F, 
+  col.names = T
+  )
+
+################################################################################
+# Plot results
+
+## Load plotting functions
+source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
+
+## Plot and save
+
+plot_mr(res) %>%
+  ggsave(., 
+    file = "main_mr_res.png",
+    width = 10,
+    height = 8,
+    dpi = 300)
 
 q("no")
