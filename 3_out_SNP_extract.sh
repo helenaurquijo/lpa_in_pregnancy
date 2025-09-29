@@ -22,8 +22,10 @@ source scripts/config.env
 
 tags=${projectdir}/data/exposures/instruments/proxies_rsid_main_lpa.txt
 ivs=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt
+mackivs=${projectdir}/data/exposures/instruments/exp_dat_sens_lpa_mack2017.txt
+olinkivs=${projectdir}/data/exposures/instruments/exp_dat_sens_lpa_olink.txt
 
-cat ${tags} ${ivs} | sort | uniq > ${projectdir}/scripts/rsids.txt
+cat ${tags} ${ivs} ${mackivs} ${olinkivs} | sort | uniq > ${projectdir}/scripts/rsids.txt
 
 dos2unix ${projectdir}/scripts/rsids.txt
 
