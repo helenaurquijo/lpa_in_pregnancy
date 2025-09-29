@@ -155,15 +155,15 @@ mack_info <- read_csv("mack_2017_snp_info.csv") %>%
   rename(eaf = maf_1kg3)
 
 ## Merge the two datasets and format for MR
-#  For now picking the joint SNP estimates as that's what the authors presented 
-#  as their main results, in the original scale (as opposed to IRNT) to match 
+#  Using marginal estimates (as opposed to joint model) to match the outcome 
+#  GWAS estimates, in the original scale (as opposed to IRNT) to match 
 #  the approach with the main exposure dataset better
 
 exp_dat_mack <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
   rename(
-    beta = j_beta,
-    se = j_se,
-    pval = j_pval
+    beta = s_beta,
+    se = s_se,
+    pval = s_pval
   ) %>%
   select(SNP, effect_allele, other_allele, eaf, beta, se, pval) %>%
   mutate(Phenotype = "LPA, apo(a) isoform-adjusted (mg/dL)") %>%
@@ -194,7 +194,6 @@ setwd(paste0(projectdir, "/data/exposures/raw/"))
 dir_name <- "LPA_P08519_OID30747_v1_Inflammation_II"
 file_name <- "discovery_chr6_LPA:P08519:OID30747:v1:Inflammation_II.gz"
 dir.create("tmp", showWarnings = FALSE)
-ukb_metadata <- Sys.getenv("ukb_metadata")
 
 # Extract file from tar
 tar_file <- file.path(Sys.getenv("ukb_pqtl_dir"), paste0(dir_name, ".tar"))
@@ -242,21 +241,28 @@ lpa_olink_dat <- merge(lpa_olink, key_p, by = "ID") %>%
   )
 
 print(head(lpa_olink_dat))
-nrow(lpa_olink_dat) # 3469
+nrow(lpa_olink_dat) # 3321
 
-## Clump to get indendent SNPs (r2 < ?, ?kb)
+## Clump to get indendent SNPs (r2 < 0.01, 1000kb)
 #  Need to discuss the parameters here
 lpa_olink_exp_dat <- clump_data(
   lpa_olink_dat,
-  clump_r2 = X,
-  clump_kb = X,
-  bfile = paste0(Sys.getenv("mrpregdir"),"/results/UKB_10k/ukb_eur_10k"),
+  clump_r2 = 0.01,
+  clump_kb = 1000,
+  bfile = Sys.getenv("refpan"),
   plink_bin = plinkbinr::get_plink_exe()
   )
 
-dim(lpa_olink_exp_dat) # 19 SNPs
+dim(lpa_olink_exp_dat) # 37 SNPs
 
 ## Save data
 setwd(paste0(projectdir, "/data/exposures/instruments/"))
+
+fwrite(lpa_olink_exp_dat, file = "exp_dat_sens_lpa_olink.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+
+# List of SNPs for extraction from outcome datasets
+rsids_olink <- data.frame(lpa_olink_exp_dat$SNP)
+fwrite(rsids_olink, file = "rsids_sens_lpa_olink.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
 
 q("no")
