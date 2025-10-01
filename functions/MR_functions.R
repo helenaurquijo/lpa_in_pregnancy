@@ -369,3 +369,67 @@ run_mr <- function(stu, out, gene, dat) {
   }
   return(res2)
 }
+
+################################################################################
+# Function to run LOO of study-specific MR estimates
+
+run_loo <- function(stu_res, out) {
+
+  # Subset data (one gene, one exposure, one outcome)
+  dt <- stu_res %>% filter(outcome == out)
+  idexp <- unique(dt$id.exposure)
+  print(dt)
+
+  if(nrow(dt) <= 1) {
+    return(NULL)
+  } else {
+
+  # Format data for LOO
+  study.loo_dat <- metafor::rma(yi = b, sei = se, data=dt, slab = study, method="FE")
+  print(study.loo_dat)
+
+  # Run LOO removing one study at a time
+  study.loo_res <- metafor::leave1out(study.loo_dat)
+
+  # Format LOO output
+  study.loo_res2 <- study.loo_res %>% 
+    as.data.frame %>%
+	  tibble::rownames_to_column(., var = "study") %>%
+    mutate(exposure = gene, outcome = out, se = estimate/zval )
+
+  return(study.loo_res2)
+
+  }
+}
+
+################################################################################
+# Function to run LOO of study-specific MR estimates
+
+run_loo <- function(gene, out) {
+
+  # Subset data (one gene, one exposure, one outcome)
+  dt <- stu_res %>% filter(exposure == gene & outcome == out)
+  idexp <- unique(dt$id.exposure)
+  print(dt)
+
+  if(nrow(dt) <= 1) {
+    return(NULL)
+  } else {
+
+  # Format data for LOO
+  study.loo_dat <- metafor::rma(yi = b, sei = se, data=dt, slab = study, method="FE")
+  print(study.loo_dat)
+
+  # Run LOO removing one study at a time
+  study.loo_res <- metafor::leave1out(study.loo_dat)
+
+  # Format LOO output
+  study.loo_res2 <- study.loo_res %>% 
+    as.data.frame %>%
+	  tibble::rownames_to_column(., var = "study") %>%
+    mutate(exposure = gene, outcome = out, se = estimate/zval )
+
+  return(study.loo_res2)
+
+  }
+}
