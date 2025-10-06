@@ -29,7 +29,7 @@ cat ${tags} ${ivs} ${mackivs} ${olinkivs} | sort | uniq > ${projectdir}/scripts/
 
 dos2unix ${projectdir}/scripts/rsids.txt
 
-R CMD BATCH ${projectdir}/scripts/4_out_SNP_extract.R ${projectdir}/logs/4_out_SNP_extract.Rout 
+R CMD BATCH ${projectdir}/scripts/5_out_SNP_extract.R ${projectdir}/logs/5_out_SNP_extract.Rout 
 
 # Move output files to avoid overwriting when extracting coloc SNPs
 for f in ma_out_dat.txt stu_out_dat.txt duos_out_dat.txt trios_out_dat.txt; do
