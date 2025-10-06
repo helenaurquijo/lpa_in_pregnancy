@@ -46,21 +46,23 @@ exp_dat_olink <- fread(paste0(iv_path, "exp_dat_sens_lpa_olink.txt")) %>%
   as.data.frame() # already formated as exposure data
 
 ## Combine the two exposure datasets
-exp_dat <- rbind(exp_dat_mack, exp_dat_olink)
+exp_dat <- bind_rows(exp_dat_mack, exp_dat_olink)
 
 print(c("Exp file", dim(exp_dat))) 
-# [1] "Exp file" "29"       "12"
+# [1] "Exp file" "67"       "14"
 
 ## Load outcome file, keep relevant outcomes
 out_dat <- 
   fread(paste0(out_path,"/main_out_dat.txt")) %>% 
-  filter(outcome %in% out_info$outcome)
+  filter(outcome %in% out_info$outcome) %>%
+  filter(SNP %in% exp_dat$SNP) %>%
+  as.data.frame()
 
 print(c("Out file", dim(out_dat)))
-# 
+# "Out file" "930"     "16"
 
 print(length(unique(out_dat$SNP)))
-# 
+# [1] 65 ; 2 SNPs missing
 
 ## Harmonise, use eaf for palindromic SNPs
 dat <- harmonise_data(
@@ -69,11 +71,11 @@ dat <- harmonise_data(
   ) %>% 
   filter(mr_keep == TRUE) %>%
   mutate(
-    study = "main"
+    study = "alt"
   )
 
 print(c("Dat file", dim(dat)))
-# [1] "Dat file" "245"      "36"
+# [1] "Dat file" "949"      "36"
 
 ################################################################################
 # Run main analysis
@@ -104,7 +106,7 @@ res <-
 ## Save results
 fwrite(
   res,
-  file = paste("alt_lpa_mr_res.txt", sep = "_"),
+  file = "alt_lpa_mr_res.txt",
   sep = "\t",
   row.names = F, 
   col.names = T
@@ -117,18 +119,20 @@ fwrite(
 source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
 
 ## Load main results for comparison
-main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) %>%
+main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_analysis.txt")) %>%
   as.data.frame() %>%
-  rename(exposure = "Lp(a), immunoturbidimetric assay (main)")
+  mutate(exposure = "LPA, immunoturbidimetric assay (main)")
 
-to_plot <- rbind(main_res, res)
+to_plot <- bind_rows(main_res, res)
 
 ## Plot and save
 
-plot_mr(res) %>%
+colours <- qualitative_hcl(3, palette = "Dark 3")
+
+plot_mr_special(to_plot, "exposure") %>%
   ggsave(., 
     file = "alt_lpa_mr_res.png",
-    width = 12,
+    width = 14,
     height = 8,
     dpi = 300)
 

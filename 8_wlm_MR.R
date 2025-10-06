@@ -39,10 +39,10 @@ out_info <- read_excel(paste0(projectdir,"/scripts/info.xlsx"), sheet = "out")
 ################################################################################
 # Load data
 
-setwd(paste0(projectdir, "results/sensitivity_analyses"))
+setwd(paste0(projectdir, "/results/sensitivity_analyses"))
 
 ## Load exposure data
-iv_path <- paste0(projectdir,"data/exposures/instruments/")
+iv_path <- paste0(projectdir,"/data/exposures/instruments/")
 
 exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
   as.data.frame() %>%
@@ -60,7 +60,6 @@ trio_dat <- fread(paste0(out_path, "/trios_out_dat.txt")) %>%
 
 ## Load WLM conmal_any data
 conmal_wlm <- Sys.getenv("conmalwlm")
-rsids <- fread(paste0(iv_path, "rsids.txt"), header = FALSE)
 
 conmal_duo_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_duos_mum-child.txt.gz")) %>%
   mutate(
@@ -68,7 +67,7 @@ conmal_duo_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_duos_mum-child.txt
     type = "duos_mum-child",
     analyses = "duos_mum-child",
     study = "MOBA") %>%
-  filter(SNP %in% rsids$V1) %>%
+  filter(SNP %in% exp_dat$SNP) %>%
   data.frame()
 
 conmal_trio_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_trios.txt.gz")) %>%
@@ -77,7 +76,7 @@ conmal_trio_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_trios.txt.gz")) %
     type = "trios",
     analyses = "trios",
     study = "MOBA") %>%
-  filter(SNP %in% rsids$V1) %>%
+  filter(SNP %in% exp_dat$SNP) %>%
   data.frame()
 
 ## Append conmal to duo and trio datasets
@@ -131,16 +130,17 @@ dat <- map(out_dat, ~harmonise_data(exp_dat, .)) %>%
 ## Create list of args for the MR run
 args <- select(dat, exposure, outcome, adjustment) %>%
   distinct %>%
-  rename(gene = exposure, out = outcome, adj = adjustment)
+  rename(exp = exposure, out = outcome, adj = adjustment)
 
 ## Run MR with WLM estimates
-wlm_res <- pmap(args, function( out, adj) {
+wlm_res <- pmap(args, function(exp, out, adj) {
 
-  print(paste("Lp(a)", "-", out, "-", adj))
+  print(paste(exp, "-", out, "-", adj))
 
   ## Subset data
   df <- filter(
     dat,
+    exposure == exp &
     outcome == out &
     adjustment == adj &
     mr_keep == TRUE
@@ -154,7 +154,7 @@ wlm_res <- pmap(args, function( out, adj) {
 
     res2 <- data.frame(
       outcome = out,
-      exposure = unique(df$exposure),
+      exposure = exp,
 			adjustment = adj,
       nsnp = 0
 		)
@@ -166,7 +166,7 @@ wlm_res <- pmap(args, function( out, adj) {
     print("Running Wald ratio")
 
     res2 <- mutate(res,
-      exposure = unique(df$exposure),
+      exposure = exp,
       adjustment = adj,
       method = "Wald ratio"
     )
@@ -181,7 +181,7 @@ wlm_res <- pmap(args, function( out, adj) {
 
       res <- MendelianRandomization::mr_ivw(df2[[1]])     
       res2 <- data.frame(
-        exposure = unique(df$exposure),
+        exposure = exp,
         adjustment = adj,
         exposure = res$Exposure,
         outcome = res$Outcome,
@@ -213,7 +213,7 @@ wlm_res <- pmap(args, function( out, adj) {
 
       res2 <- res %>%
         mutate(
-          exposure = unique(df$exposure),
+          exposure = exp,
           adjustment = adj,
           method = ifelse(nsnp == 1, "Wald ratio", "IVW")
         )
@@ -224,7 +224,12 @@ wlm_res <- pmap(args, function( out, adj) {
   return(res2)
   
 }) %>%
-  bind_rows %>%
+  bind_rows 
+
+dim(wlm_res)
+  
+final_res <- wlm_res %>%
+  left_join(out_info, by = "outcome") %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 10nmol/L
     b = -b * 10,
@@ -239,7 +244,7 @@ wlm_res <- pmap(args, function( out, adj) {
   )
 
 fwrite(
-  wlm_res,
+  final_res,
   file = "wlm_lpa_mr_res.txt",
   sep = "\t",
   row.names = F,
@@ -249,31 +254,26 @@ fwrite(
 ################################################################################
 # Plot WLM results
 
+source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
+
 ## Maternal DUO estimates
 
 duos <- c("Maternal (fetal adjusted)", "Maternal (unadjusted)")
 
-mr_res <- fread("wlm_500_0.2_mr_analysis.txt") %>%
-  left_join(., out_info, by = c("outcome" = "outcome")) %>% ## annotate outcomes
-  filter(adjustment %in% duos) %>%
-  mutate(
-    exposure = factor(gene.exposure, levels = exp_info$gene_name),
-    adjustment = factor(adjustment,
-    levels = duos)
-  )
+to_plot <- filter(final_res, adjustment %in% duos) %>%
+  mutate(adjustment = factor(adjustment,levels = duos))
 
-colours <- c('#8C103D', '#D81B60', '#FE6100', '#FFC107')
-names(colours) <- unique(mr_res$adjustment)
+colours <- c('#8C103D', '#D81B60')
+names(colours) <- unique(to_plot$adjustment)
 
-plot_mr_special(mr_res, "adjustment") %>%
+plot_mr_special(to_plot, "adjustment") %>%
   ggsave(
-    filename = "lpa_wlm_mr_res_mat_duos.png",
-    width = 9,
-    height = 7,
+    filename = "wlm_lpa_mr_res_duos.png",
+    width = 12,
+    height = 11,
     dpi = 300)
 
 # TRIO estimates
-
 trios <- c(
   "Paternal (maternal+fetal adjusted)", "Paternal (unadjusted)",
   "Fetal (maternal+paternal adjusted)", "Fetal (maternal adjusted)",
@@ -281,25 +281,21 @@ trios <- c(
   "Maternal (fetal adjusted)", "Maternal (unadjusted)"
   )
 
-mr_res <- fread("wlm_500_0.2_mr_analysis.txt") %>%
-## annotate outcomes
-  left_join(., out_info, by = c("outcome" = "outcome")) %>% 
-  mutate(
-    exposure = factor(gene.exposure, levels = exp_info$gene_name),
-    adjustment = factor(adjustment,
-    levels = trios
-  )
+to_plot <- filter(final_res, adjustment %in% trios) %>%
+  mutate(adjustment = factor(adjustment,levels = trios))
 
 colours <- c(
   '#8C103D', '#D81B60', '#FF5B97', '#FE6100',
   '#FFC107', '#FFE749', '#125D9E', '#1E88E5'
   )
 
-names(colours) <- unique(mr_res$adjustment)
+names(colours) <- unique(to_plot$adjustment)
 
-plot_mr_special(mr_res, "adjustment") %>%
+plot_mr_special(to_plot, "adjustment") %>%
   ggsave(
-    filename = "lpa_wlm_mr_res_mat_trios.png",
-    width = 9,
-    height = 9,
+    filename = "wlm_lpa_mr_res_trios.png",
+    width = 12,
+    height = 15,
     dpi = 300)
+
+q("no")

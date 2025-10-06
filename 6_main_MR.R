@@ -47,7 +47,7 @@ exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
     # storing r2 as info column so it's not lost in format_data
     info_col = "r2" 
   ) %>%
-  mutate(exposure = "LPA")
+  mutate(exposure = "Lp(a)")
 
 print(c("Exp file", dim(exp_dat))) 
 # [1] "Exp file" "29"       "12"
@@ -62,10 +62,10 @@ out_dat <-
   )
 
 print(c("Out file", dim(out_dat)))
-# [1] "Out file" "1899"     "18"
+# [1] "Out file" "2938"     "18"
 
 print(length(unique(out_dat$SNP)))
-# [1] 162
+# [1] 219
 
 ## Find proxies where needed
 proxies_info <- fread(paste0(iv_path, "proxies_info_main_lpa.txt"))
@@ -86,7 +86,7 @@ dat <- harmonise_data(
   )
 
 print(c("Dat file", dim(dat)))
-# [1] "Dat file" "245"      "36"
+# [1] "Dat file" "245"      "37"
 
 ################################################################################
 # Run main analysis
