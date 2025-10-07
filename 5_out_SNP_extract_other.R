@@ -42,13 +42,13 @@ out_dat_pph <- fread("Postpartum_hemorrhage.txt.gz") %>%
     effect_allele = EA,
     other_allele = OA,
     eaf = EAfrq,
-    beta = Effect,
+    OR = Effect,
     pval = P
   ) %>%
   filter(SNP %in% rsids$V1) %>%
   mutate(
     Phenotype = "pph",
-    beta = log(beta), # effect size is given as OR
+    beta = log(OR), # effect size is given as OR
     se = abs(beta) / abs(qnorm(1 - pval / 2)), # se not provided
     ncase = 21512,
     ncontrol = 259500
