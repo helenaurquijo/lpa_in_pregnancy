@@ -7,6 +7,7 @@
 # These analyses require full summary data for all SNPs in the LPA locus and 
 # those were not shared by Shi et al. 2024. Hence, we extract them from the
 # GWAS by Sinnott-Armstrong et al. 2021 Nat Genet, also in the UK Biobank.
+# 
 # This script also extracts the list of SNPs for PPH and congenital anomalies
 # outcomes, which are not part of the MR-PREG meta-analyses.
 ##
@@ -130,6 +131,69 @@ fwrite(
   "full_rsids.txt",
   sep = "\t",
   col.names = FALSE,
+  row.names = FALSE
+  )
+
+################################################################################
+# Extract LPA region for outcomes not in MR-PREG meta-analyses
+
+setwd(paste0(projectdir, "/data/outcomes/full_sumstats"))
+
+## 1) PPH, from the GWAS meta-analysis of Westerg4ard et al. 2024 Nat Genet.
+pph_path <- paste0(projectdir, "/data/outcomes/raw/")
+out_dat_pph <- fread(paste0(pph_path,"Postpartum_hemorrhage.txt.gz")) %>%
+  rename(
+    SNP = rsName,
+    chr = Chr,
+    pos_b38 = PosB38,
+    effect_allele = EA,
+    other_allele = OA,
+    eaf = EAfrq,
+    OR = Effect,
+    pval = P
+  ) %>%
+  # filter for SNPs in Lp(a) GWAS as you need data for the same SNPs
+  filter(SNP %in% formatted$SNP) %>%
+  mutate(
+    Phenotype = "pph",
+    beta = log(OR), # effect size is given as OR
+    se = abs(beta) / abs(qnorm(1 - pval / 2)), # se not provided
+    ncase = 21512,
+    ncontrol = 259500
+    ) %>% 
+  data.frame() %>%
+  format_data(type = "outcome") %>%
+  mutate(pos.outcome = NA)
+
+print(dim(out_dat_pph))
+
+## Save data
+fwrite(
+  out_dat_pph,
+  "pph_full_sumstats.txt",
+  sep = "\t",
+  col.names = TRUE,
+  row.names = FALSE
+  )
+
+## 2) Congenital anomalies, from MoBa only so not part of the meta-analyses
+
+## Read in, filter and format data
+out_dat_conmal <- fread(Sys.getenv("conmal")) %>%
+  mutate(Phenotype = "conmal_any") %>%
+  # filter for SNPs in Lp(a) GWAS as you need data for the same SNPs
+  filter(SNP %in% formatted$SNP) %>%
+  data.frame() %>%
+  format_data(type = "outcome")
+
+print(dim(out_dat_conmal))
+
+## Save data
+fwrite(
+  out_dat_conmal,
+  "conmal_full_sumstats.txt",
+  sep = "\t",
+  col.names = TRUE,
   row.names = FALSE
   )
 
