@@ -18,12 +18,28 @@ source scripts/config.env
 
 module load languages/R/4.3.3
 
-## Run 6_main_MR.R
+## Run 8_main_MR.R
 #  Runs main MR analysis - lp(a) x 21 APPOs
-echo "Running 6_main_MR.R..."
-R CMD BATCH ${projectdir}/scripts/6_main_MR.R ${projectdir}/logs/6_main_MR.Rout
+echo "Running 8_main_MR.R..."
+R CMD BATCH ${projectdir}/scripts/8_main_MR.R ${projectdir}/logs/8_main_MR.Rout
 
-## Run 7_alt_lpa_MR.R
+## Run 9_alt_lpa_MR.R
 #  Runs MR with alternative exposure datasets for lp(a) on the same outcomes
-echo "Running 7_alt_lpa_MR.R..."
-R CMD BATCH ${projectdir}/scripts/7_alt_lpa_MR.R ${projectdir}/logs/7_alt_lpa_MR.Rout
+echo "Running 9_alt_lpa_MR.R..."
+R CMD BATCH ${projectdir}/scripts/9_alt_lpa_MR.R ${projectdir}/logs/9_alt_lpa_MR.Rout
+
+## Run 10_wlm_MR.R
+#  Runs weighted linear model MR analysis
+echo "Running 10_wlm_MR.R..."
+R CMD BATCH ${projectdir}/scripts/10_wlm_MR.R ${projectdir}/logs/10_wlm_MR.Rout
+
+## Run 11_loo_MR.R
+#  Runs leave-one-out MR analysis for sensitivity testing
+echo "Running 11_loo_MR.R..."
+R CMD BATCH ${projectdir}/scripts/11_loo_MR.R ${projectdir}/logs/11_loo_MR.Rout
+
+## Run 12_sample_overlap.R
+#  Analyzes sample overlap between exposure and outcome datasets
+echo "Running 12_sample_overlap.R..."
+R CMD BATCH ${projectdir}/scripts/12_sample_overlap.R ${projectdir}/logs/12_sample_overlap.Rout
+
