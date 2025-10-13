@@ -135,6 +135,86 @@ fwrite(
   )
 
 ################################################################################
+# Compare estimates to Shi et al. 2024 GWAS estimates (IV estimates)
+# Sanity check to ensure estimates are highly correlated
+
+library(ggplot2)
+source("scripts/functions/plot_functions.R")
+
+path <- paste0(projectdir, "/data/exposures/instruments/")
+iv_dat <- fread(paste0(path, "exp_dat_main_lpa.txt"))
+
+comp <- inner_join(formatted, iv_dat, by = "SNP") %>%
+  select(
+    SNP,
+    effect_allele, effect_allele.exposure,
+    other_allele, other_allele.exposure,
+    eaf, MAF = eaf.exposure,
+    beta, beta.exposure,
+    se, se.exposure,
+    pval, pval.exposure
+    ) %>%
+  mutate(
+    # ensure no pvals of 0
+    pval = ifelse(pval == 0, .Machine$double.xmin, pval),
+    # Convert from SD units to nmol/L
+    # SD as per UKB showcase https://biobank.ndph.ox.ac.uk/showcase/field.cgi?id=30790
+    beta.exposure = beta.exposure * 49.21
+    )
+
+## Check alleles are harmonised
+allele_mismatch <- which(
+  # Effect alleles do not match
+  (comp$effect_allele != comp$effect_allele.exposure | 
+   comp$other_allele != comp$other_allele.exposure) & 
+  # And ensure they are merely flipped
+  (comp$effect_allele == comp$other_allele.exposure | 
+   comp$other_allele == comp$effect_allele.exposure)
+)
+if(length(allele_mismatch) == 0) {
+  print("No allele mismatches found")
+} else {
+  print(paste("Found", length(allele_mismatch), "allele mismatches"))
+}
+
+## Ensure no palindromic SNPs
+palindromic <- which((comp$effect_allele == "A" & comp$other_allele == "T") |
+                     (comp$effect_allele == "T" & comp$other_allele == "A") |
+                     (comp$effect_allele == "C" & comp$other_allele == "G") |
+                     (comp$effect_allele == "G" & comp$other_allele == "C"))
+
+palindromic
+# the only palindromic SNP is harmonised and inferrable
+
+## Flip alleles if needed
+if(length(allele_mismatch) > 0) {
+  # Fix each mismatched row directly
+  for(i in allele_mismatch) {
+    # Swap alleles
+    comp$effect_allele[i] <- comp$effect_allele.exposure[i]
+    comp$other_allele[i] <- comp$other_allele.exposure[i]
+    # Flip the effect size
+    comp$beta[i] <- -comp$beta[i]
+  }
+}
+
+## Check alleles it has worked
+allele_mismatch <- which(comp$effect_allele != comp$effect_allele.exposure | 
+             comp$other_allele != comp$other_allele.exposure)
+if(length(allele_mismatch) == 0) {
+  print("No allele mismatches found")
+} else {
+  print(paste("Found", length(allele_mismatch), "allele mismatches"))
+}
+
+## Plot comparison
+png("lpa_gwas_vs_iv.png", 
+        res = 400, width = 25, height = 25, units = "cm")
+scatter_plot(comp)
+dev.off()
+
+
+################################################################################
 # Extract LPA region for outcomes not in MR-PREG meta-analyses
 
 setwd(paste0(projectdir, "/data/outcomes/full_sumstats"))
