@@ -91,9 +91,15 @@ res <-
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 10nmol/L
-    # scaling needs to be discussed
-    b = -b,
-    se = se,
+    # 10nmol/L is approx 4.65mg/dL
+    b = case_when(
+      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ -b * 4.65,
+      TRUE ~ -b  # Default (keeping original negation)
+    ),
+    se = case_when(
+      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ -se * 4.65,
+      TRUE ~ -se  # Default (keeping original negation)
+    ),
   ) %>%
   mutate(
     # Conditionally calculate OR, UCI, and LCI for binary outcomes
@@ -119,7 +125,7 @@ fwrite(
 source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
 
 ## Load main results for comparison
-main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_analysis.txt")) %>%
+main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) %>%
   as.data.frame() %>%
   mutate(exposure = "LPA, immunoturbidimetric assay (main)")
 
