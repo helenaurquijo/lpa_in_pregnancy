@@ -23,17 +23,21 @@ system('dx download -f data/derived/Phenotype_MRPREG.txt', intern = TRUE)
 # eid x IEU ID linker file
 system('dx download -f data/derived/linker_app2393.csv', intern = TRUE)
 
+# ICD9/10 main diagnoses and lp(a)
+system('dx download -f data/extracted_data.tsv', intern = TRUE)
+
 # APPO info
 system('dx download -f scripts/info.xlsx', intern = TRUE)
 
-# ICD9/10 main diagnoses and lp(a)
-system('dx download -f data/extracted_data.tsv', intern = TRUE)
+# Helper functions
+system('dx download -f scripts/RAP_functions.R', intern = TRUE)
 
 ## Read in data
 derived_data <- readr::read_tsv("Phenotype_MRPREG.txt")
 linker <- readr::read_csv("linker_app2393.csv") %>% rename(eid = app)
 out_info <- readxl::read_excel("info.xlsx")
 extdat <- readr::read_tsv("extracted_data.tsv")
+source("RAP_functions.R")
 
 ## Match MR-PREG data with participant IDs using linker
 
@@ -113,44 +117,7 @@ dim(dataset2)
 
 
 ## Create unified tally of all variables and events 
-# Helper functions
-summarize_variable <- function(data, varname, var_type = NULL) {
-  if(is.null(var_type)) {
-    # Auto-detect type
-    if(is.numeric(data[[varname]])) {
-      if(all(data[[varname]] %in% c(0, 1, NA), na.rm = TRUE)) {
-        var_type <- "bin"
-      } else {
-        var_type <- "cont"
-      }
-    } else {
-      var_type <- "cat"
-    }
-  }
-  
-  if(var_type == "cont") {
-    # For continuous variables, get mean, SD, etc.
-    vals <- data[[varname]]
-    return(sprintf("Mean: %.2f, SD: %.2f, Range: %.2f-%.2f, N: %d", 
-                  mean(vals, na.rm = TRUE), 
-                  sd(vals, na.rm = TRUE),
-                  min(vals, na.rm = TRUE),
-                  max(vals, na.rm = TRUE),
-                  sum(!is.na(vals))))
-  } else if(var_type == "bin") {
-    # For binary variables, get count and percentage
-    count <- sum(data[[varname]] == 1, na.rm = TRUE)
-    total <- sum(!is.na(data[[varname]]))
-    return(sprintf("%d (%.2f%%)", count, count/total*100))
-  } else {
-    # For categorical, get top categories
-    tbl <- table(data[[varname]], useNA = "ifany")
-    top_n <- head(sort(tbl, decreasing = TRUE), 3)
-    return(paste(names(top_n), top_n, sep = ": ", collapse = ", "))
-  }
-}
 
-# Prepare data for all tallies
 tally_data <- list()
 
 # 1. ICD10 venous codes
