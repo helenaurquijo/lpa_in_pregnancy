@@ -149,9 +149,13 @@ mack_dat <- read_csv("mack_2017_lpa_snps.csv", ) %>%
 # maf_cohorts: MAF range of contributing studies
 # maf_1kg3: MAF 1000G ph1v3
 
-mack_info <- read_csv("mack_2017_snp_info.csv") %>%
+mack_info <- fread("mack_2017_snp_info.csv") %>%
   as.data.frame() %>%
-  select(SNP, maf_1kg3) %>%
+  select(SNP, maf_1kg3, `chr:pos`) %>%
+  # separate `chr:pos` into chr and position
+  tidyr::separate(`chr:pos`, into = c("chr", "pos"), sep = ":") %>%
+  # force numeric
+  mutate_at(vars(chr, pos), as.numeric) %>%
   rename(eaf = maf_1kg3)
 
 ## Merge the two datasets and format for MR
@@ -165,12 +169,12 @@ exp_dat_mack <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
     se = s_se,
     pval = s_pval
   ) %>%
-  select(SNP, effect_allele, other_allele, eaf, beta, se, pval) %>%
+  select(SNP, effect_allele, other_allele, eaf, beta, se, pval, chr, pos) %>%
   mutate(Phenotype = "LPA, apo(a) isoform-adjusted (mg/dL)") %>%
   format_data(.,
     type = "exposure",
     min_pval = .Machine$double.xmin    
-  )
+  ) 
 
 print(head(exp_dat_mack))
 nrow(exp_dat_mack) # [1] 30
@@ -183,6 +187,17 @@ fwrite(exp_dat_mack, file = "exp_dat_sens_lpa_mack2017.txt", sep = "\t", quote =
 # List of SNPs for extraction from outcome datasets
 rsids_mack <- data.frame(exp_dat_mack$SNP)
 fwrite(rsids_mack, file = "rsids_sens_lpa_mack2017.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+# Save conditional estimates (joint model) for use as weights in the 
+# genetic score analysis
+weights <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
+  rename(
+    beta = j_beta,
+    se = j_se,
+    pval = j_pval
+  ) %>%
+  select(SNP, effect_allele, other_allele, eaf, beta, se, pval, chr, pos)
+fwrite(weights, file = "lpa_mack2017_weights.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 ###############################################################################
 # 3) Olink UKB-PPP GWAS
