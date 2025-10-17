@@ -190,6 +190,7 @@ fwrite(rsids_mack, file = "rsids_sens_lpa_mack2017.txt", sep = "\t", quote = FAL
 
 # Save conditional estimates (joint model) for use as weights in the 
 # genetic score analysis
+f_name <- paste0(projectdir, "/data/UKB_RAP/lpa_mack2017_weights.txt")
 weights <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
   rename(
     beta = j_beta,
@@ -197,7 +198,7 @@ weights <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
     pval = j_pval
   ) %>%
   select(SNP, effect_allele, other_allele, eaf, beta, se, pval, chr, pos)
-fwrite(weights, file = "lpa_mack2017_weights.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+fwrite(weights, file = f_name, sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 ###############################################################################
 # 3) Olink UKB-PPP GWAS
