@@ -19,6 +19,7 @@ pacman::p_load(dplyr, readr, readxl, stringr)
 
 # MR-PREG phenotypes
 system('dx download -f data/derived/Phenotype_MRPREG.txt', intern = TRUE)
+system('dx download -f data/derived/phenotypic_data_maternity.txt', intern = TRUE)
 
 # eid x IEU ID linker file
 system('dx download -f data/derived/linker_app2393.csv', intern = TRUE)
@@ -34,17 +35,30 @@ system('dx download -f scripts/RAP_functions.R', intern = TRUE)
 
 ## Read in data
 derived_data <- readr::read_tsv("Phenotype_MRPREG.txt")
+derived_data_mat <- readr::read_tsv("phenotypic_data_maternity.txt")
 linker <- readr::read_csv("linker_app2393.csv") %>% rename(eid = app)
 out_info <- readxl::read_excel("info.xlsx")
 extdat <- readr::read_tsv("extracted_data.tsv")
 source("RAP_functions.R")
 
-## Match MR-PREG data with participant IDs using linker
+## Merge maternity and questionnaire-based derived data
 
 dim(derived_data)
 # [1] 224313     73
+dim(derived_data_mat)
 
-dataset <- derived_data %>%
+## join keeping all rows from both datasets
+all_derived <- full_join(
+  derived_data,
+  derived_data_mat,
+  by = "FID"
+)
+
+dim(all_derived)
+
+## Match MR-PREG data with participant IDs using linker
+
+dataset <- all_derived %>%
   dplyr::select(FID, any_of(out_info$outcome), smoking, bmi_kgm2) %>%
   dplyr::left_join(., linker, by = c("FID" = "ieu"))
 
@@ -66,11 +80,30 @@ dataset1 <- dataset %>%
     #BMI = 'p21001_i0',      # Body mass index
     #pack_years_smoking = 	'p20162_i0', # Pack years adult smoking as proportion of life span exposed to smoking
     lpa_mes = 'p30790_i0', # Lipoprotein(a) measurements
+    exclude = 'p22010',  # Recommended genetic analysis exclusions
+    geno_batch = 'p22000', # Genotyping batch
+    geno_ethnic = 'p22006',  # Genetic ethnic grouping
+    related_excl = 'p22018',  # Genetic relatedness exclusions
+    aneuploidy = 'p22019',  # Sex chromosome aneuploidy
+    used_in_pc = 'p22020',  # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
   )
+
+## Peform initial data QC
+
+dataset2 <- dataset1 %>%
+  dplyr::filter(
+    is.na(exclude) &
+    is.na(related_excl) &
+    is.na(aneuploidy) &
+    geno_ethnic == 1 &
+    used_in_pc == 1
+  )
+
+## Prune related individuals
 
 ## Get thrombotic events
 
-dataset2 <- dataset1 %>%
+dataset3 <- dataset2 %>%
   dplyr::mutate(
     # Handle missing ICD columns
     ICD10 = tidyr::replace_na(ICD10, ""),
@@ -112,7 +145,7 @@ dataset2 <- dataset1 %>%
     any_event = ifelse(venous_event == 1 | atheros_event == 1, 1, 0)
   )
 
-dim(dataset2)
+dim(dataset3)
 # [1] 224313     67
 
 
@@ -134,7 +167,7 @@ tally_data[["icd10"]] <- data.frame(
   Code = icd10_venous_codes,
   Description = icd10_descriptions,
   Count = sapply(icd10_venous_codes, function(code) {
-    sum(str_detect(dataset2$ICD10, code), na.rm = TRUE)
+    sum(str_detect(dataset3$ICD10, code), na.rm = TRUE)
   }),
   stringsAsFactors = FALSE
 )
@@ -152,7 +185,7 @@ tally_data[["icd9"]] <- data.frame(
   Code = icd9_venous_codes,
   Description = icd9_descriptions,
   Count = sapply(icd9_venous_codes, function(code) {
-    sum(str_detect(dataset2$ICD9, code), na.rm = TRUE)
+    sum(str_detect(dataset3$ICD9, code), na.rm = TRUE)
   }),
   stringsAsFactors = FALSE
 )
@@ -169,15 +202,15 @@ tally_data[["events"]] <- data.frame(
   Code = event_indicators,
   Description = event_descriptions,
   Count = sapply(event_indicators, function(ind) {
-    count <- sum(dataset2[[ind]], na.rm = TRUE)
-    sprintf("%d (%.2f%%)", count, count/nrow(dataset2)*100)
+    count <- sum(dataset3[[ind]], na.rm = TRUE)
+    sprintf("%d (%.2f%%)", count, count/nrow(dataset3)*100)
   }),
   stringsAsFactors = FALSE
 )
 
 # 4. Outcome variables
 if(length(out_info$outcome) > 0) {
-  outcomes_present <- intersect(out_info$outcome, names(dataset2))
+  outcomes_present <- intersect(out_info$outcome, names(dataset3))
   if(length(outcomes_present) > 0) {
     # Create mapping of outcomes to types and descriptions
     outcome_types <- setNames(out_info$cat, out_info$outcome)
@@ -190,7 +223,7 @@ if(length(out_info$outcome) > 0) {
         ifelse(!is.na(outcome_descriptions[o]), outcome_descriptions[o], o)
       }),
       Count = sapply(outcomes_present, function(o) {
-        summarize_variable(dataset2, o, outcome_types[o])
+        summarize_variable(dataset3, o, outcome_types[o])
       }),
       stringsAsFactors = FALSE
     )
@@ -211,7 +244,7 @@ system('dx upload variable_tally.csv --dest data/', intern = TRUE)
 
 ## Clean analysis dataset
 
-final_dataset <- dataset2 %>%
+final_dataset <- dataset3 %>%
   dplyr::select(
     eid,
     any_of(out_info$outcome),  
@@ -221,6 +254,7 @@ final_dataset <- dataset2 %>%
     bmi_kgm2,
     smoking,
     lpa_mes,
+    geno_batch,
     any_of(paste0("PC_", 1:40))  
   )
 
