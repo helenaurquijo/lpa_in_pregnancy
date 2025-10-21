@@ -1,11 +1,14 @@
 ################################################################################
-#                        PRS LPA x APPOs in UK Biobank                         #
+#                         Building UK Biobank dataset                          #
 ################################################################################
 
 ##
 # This script builds a dataset from 1) the derived MR-PREG phenotypes and
 # 2) ICD9/10 main diagnoses for thrombotic events, 3) lipoprotein(a) levels and
-# 4) 40 genetic principal components, for further analysis.
+# 4) 40 genetic principal components and genotyping array, for further analysis.
+# Individuals are also filtered on being broadly European and unrelated.
+# 
+# This dataset will underlie the genetic score and LoF analyses.
 ##
 
 # to upload this script to DNAnexus, run:
@@ -15,39 +18,50 @@
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load(dplyr, readr, readxl, stringr)
 
+################################################################################
+# Set up environment
+
 ## Download required data to RStudio session
 
 # MR-PREG phenotypes
-system('dx download -f data/derived/Phenotype_MRPREG.txt', intern = TRUE)
-system('dx download -f data/derived/phenotypic_data_maternity.txt', intern = TRUE)
+system('dx download -f data/UKB_RAP/derived/Phenotype_MRPREG.txt', intern = TRUE)
+system('dx download -f data/UKB_RAP/derived/phenotypic_data_maternity.txt', intern = TRUE)
 
 # eid x IEU ID linker file
-system('dx download -f data/derived/linker_app2393.csv', intern = TRUE)
+system('dx download -f data/UKB_RAP/derived/linker_app2393.csv', intern = TRUE)
+
+# In-house derived list of European participants
+system('dx download -f data/UKB_RAP/derived/data.chr1-22.sample', intern = TRUE)
 
 # ICD9/10 main diagnoses and lp(a)
-system('dx download -f data/extracted_data.tsv', intern = TRUE)
+system('dx download -f data/UKB_RAP/extracted_data.tsv', intern = TRUE)
 
 # APPO info
 system('dx download -f scripts/info.xlsx', intern = TRUE)
 
 # Helper functions
-system('dx download -f scripts/RAP_functions.R', intern = TRUE)
+system('dx download -f scripts/UKB_RAP/RAP_functions.R', intern = TRUE)
 
 ## Read in data
 derived_data <- readr::read_tsv("Phenotype_MRPREG.txt")
 derived_data_mat <- readr::read_tsv("phenotypic_data_maternity.txt")
 linker <- readr::read_csv("linker_app2393.csv") %>% rename(eid = app)
+eur_list <- readr::read_table("data.chr1-22.sample") %>% select(FID = ID_1)
 out_info <- readxl::read_excel("info.xlsx")
 extdat <- readr::read_tsv("extracted_data.tsv")
 source("RAP_functions.R")
+
+################################################################################
+# Merge MR-PREG phenotypes and perform genetic-based QC
 
 ## Merge maternity and questionnaire-based derived data
 
 dim(derived_data)
 # [1] 224313     73
 dim(derived_data_mat)
+# [1] 209945     26
 
-## join keeping all rows from both datasets
+## Join keeping all rows from both datasets
 all_derived <- full_join(
   derived_data,
   derived_data_mat,
@@ -55,18 +69,17 @@ all_derived <- full_join(
 )
 
 dim(all_derived)
+# [1] 253457     98
 
-## Match MR-PREG data with participant IDs using linker
-
+## Match MR-PREG data with participant IDs using IEU linker
 dataset <- all_derived %>%
   dplyr::select(FID, any_of(out_info$outcome), smoking, bmi_kgm2) %>%
   dplyr::left_join(., linker, by = c("FID" = "ieu"))
 
 dim(dataset)
-# [1] 224313     12
+# [1] 253457     18
 
-## Merge derived dataset with additional data
-
+## Merge derived dataset with data extracted with 1_data_extraction.ipynb
 dataset1 <- dataset %>%
   dplyr::left_join(., extdat, by = "eid") %>%
   rename_with(
@@ -75,34 +88,33 @@ dataset1 <- dataset %>%
     any_of(paste0("p22009_a", 1:40))
   ) %>%
   rename(
-    ICD10 = 'p41202',      # HES main ICD-10 codes
-    ICD9 = 'p41203',       # HES main ICD9 codes
-    #BMI = 'p21001_i0',      # Body mass index
-    #pack_years_smoking = 	'p20162_i0', # Pack years adult smoking as proportion of life span exposed to smoking
-    lpa_mes = 'p30790_i0', # Lipoprotein(a) measurements
-    exclude = 'p22010',  # Recommended genetic analysis exclusions
-    geno_batch = 'p22000', # Genotyping batch
-    geno_ethnic = 'p22006',  # Genetic ethnic grouping
-    related_excl = 'p22018',  # Genetic relatedness exclusions
-    aneuploidy = 'p22019',  # Sex chromosome aneuploidy
-    used_in_pc = 'p22020',  # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
+    ICD10 = 'p41202',       # HES main ICD-10 codes
+    ICD9 = 'p41203',        # HES main ICD9 codes
+    lpa_mes = 'p30790_i0',  # Lipoprotein(a) measurements
+    geno_batch = 'p22000',  # Genotyping batch
+    used_in_pc = 'p22020'   # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
   )
 
-## Peform initial data QC
+dim(dataset1)
+# [1] 253457     66
+
+## Restrict participants to those of 
+#    - European ancestry (10.5523/bris.pnoat8cxo0u52p6ynfaekeigi) AND 
+#    - Unrelated (per Bycroft et al., 2018)
 
 dataset2 <- dataset1 %>%
   dplyr::filter(
-    is.na(exclude) &
-    is.na(related_excl) &
-    is.na(aneuploidy) &
-    geno_ethnic == 1 &
-    used_in_pc == 1
+    used_in_pc == 1 &
+    FID %in% eur_list$FID
   )
 
-## Prune related individuals
+dim(dataset2)
+# [1] 175485     66
+
+################################################################################
+# Create thrombotic event variables from ICD codes
 
 ## Get thrombotic events
-
 dataset3 <- dataset2 %>%
   dplyr::mutate(
     # Handle missing ICD columns
@@ -146,10 +158,11 @@ dataset3 <- dataset2 %>%
   )
 
 dim(dataset3)
-# [1] 224313     67
+# [1] 185651     76
 
 
-## Create unified tally of all variables and events 
+################################################################################
+# Create outcome counts
 
 tally_data <- list()
 
@@ -198,7 +211,7 @@ event_descriptions <- c(
   "Atherosclerotic event"
 )
 tally_data[["events"]] <- data.frame(
-  Category = rep("Event Indicators", length(event_indicators)),
+  Category = rep("Outcomes", length(event_indicators)),
   Code = event_indicators,
   Description = event_descriptions,
   Count = sapply(event_indicators, function(ind) {
@@ -208,7 +221,7 @@ tally_data[["events"]] <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# 4. Outcome variables
+# 4. MR-PREG outcome variables
 if(length(out_info$outcome) > 0) {
   outcomes_present <- intersect(out_info$outcome, names(dataset3))
   if(length(outcomes_present) > 0) {
@@ -223,7 +236,7 @@ if(length(out_info$outcome) > 0) {
         ifelse(!is.na(outcome_descriptions[o]), outcome_descriptions[o], o)
       }),
       Count = sapply(outcomes_present, function(o) {
-        summarize_variable(dataset3, o, outcome_types[o])
+        summarise_variable(dataset3, o, outcome_types[o])
       }),
       stringsAsFactors = FALSE
     )
@@ -240,10 +253,12 @@ print(all_tallies)
 
 # Save the tally to a file
 write.csv(all_tallies, "variable_tally.csv", row.names = FALSE)
-system('dx upload variable_tally.csv --dest data/', intern = TRUE)
+system('dx upload variable_tally.csv --dest data/UKB_RAP/', intern = TRUE)
+
+################################################################################
+# Clean and save final dataset
 
 ## Clean analysis dataset
-
 final_dataset <- dataset3 %>%
   dplyr::select(
     eid,
@@ -259,8 +274,8 @@ final_dataset <- dataset3 %>%
   )
 
 dim(final_dataset)
-#[1] 224313     55
+# [1] 175485     62
 
 ## Save dataset
 readr::write_tsv(final_dataset, "lpa_appos_dataset.tsv")
-system('dx upload lpa_appos_dataset.tsv --dest data/', intern = TRUE)
+system('dx upload lpa_appos_dataset.tsv --dest data/UKB_RAP/', intern = TRUE)
