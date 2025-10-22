@@ -46,8 +46,11 @@ summarise_variable <- function(data, varname, var_type = NULL) {
 # Function to perform association analysis - with updated output format
 
 assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
-  # Minimize printing for speed
-  cat(paste("Analyzing:", outcome, "|", cat, "\n"))
+  # Determine if score_var is binary
+  is_binary_exposure <- all(df[[score_var]] %in% c(0, 1, NA), na.rm = TRUE)
+  
+  cat(paste("Analyzing:", outcome, "| Type:", cat, 
+            "| Exposure type:", ifelse(is_binary_exposure, "binary", "continuous"), "\n"))
   
   # Check if outcome exists in dataframe
   if (!outcome %in% colnames(df)) {
@@ -55,12 +58,14 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
     return(NULL)
   }
   
-  # Pre-calculate PCs string once
+  # Specify covariate strings
   pcs_string <- paste0("PC_", 1:40)
+  geno_batch <- "geno_batch"
   
-  if (is.null(quint_var)) {
+  if (is.null(quint_var) || is_binary_exposure) {
     # Overall analysis (not stratified by quintiles)
-    formula <- reformulate(c(score_var, pcs_string), response = outcome)
+    # If exposure is binary, we always run the overall analysis only
+    formula <- reformulate(c(score_var, geno_batch, pcs_string), response = outcome)
     
     # Try-catch to prevent crashes
     tryCatch({
@@ -75,13 +80,13 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
           return(NULL)
         }
         
-        # Use control parameters to help with convergence issues
+        # Run model
         model <- glm(formula, 
                     data = df, 
                     family = binomial,
-                    control = list(maxit = 50, trace = FALSE))
+)
         
-        # Extract model summary without using tidy()
+        # Extract model summary 
         model_summary <- summary(model)
         coef_index <- which(rownames(model_summary$coefficients) == score_var)
         
@@ -104,22 +109,22 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
         or_ci_lower <- exp(ci_lower)
         or_ci_upper <- exp(ci_upper)
         
-        # Create result data frame
+        # Create result data frame with binary exposure flag
         result <- data.frame(
           outcome = outcome,
           quintile = "overall",
-          b = estimate,  # Log odds for binary outcomes
-          se = std_error, # Standard error
-          OR = or,       # Odds ratio
+          b = estimate,
+          se = std_error,
+          OR = or,
           p_value = p_value,
           CI_lower = ci_lower,
-          CI_upper = ci_upper
+          CI_upper = ci_upper,
         )
         
       } else if (cat == "cont") {
         model <- lm(formula, data = df)
         
-        # Extract model summary without using tidy()
+        # Extract model summary 
         model_summary <- summary(model)
         coef_index <- which(rownames(model_summary$coefficients) == score_var)
         
@@ -141,29 +146,33 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
         result <- data.frame(
           outcome = outcome,
           quintile = "overall",
-          b = estimate,  # Beta for continuous outcomes
-          se = std_error, # Standard error
-          OR = NA,       # NA for continuous outcomes
+          b = estimate,
+          se = std_error,
+          OR = NA,
           p_value = p_value,
           CI_lower = ci_lower,
-          CI_upper = ci_upper
+          CI_upper = ci_upper,
         )
       } else {
         return(NULL)
       }
       
-      # Print a single concise summary
+      # Print appropriate effect description based on exposure type
       effect_type <- if(cat == "bin") "OR" else "Beta"
+      effect_desc <- if(is_binary_exposure) "comparing groups" else "per SD increase"
       effect_value <- if(cat == "bin") result$OR else result$b
-      cat(sprintf("  Overall %s = %.3f (%.3f-%.3f), p = %.4f\n", 
-                 effect_type, effect_value, result$CI_lower, result$CI_upper, result$p_value))
+      
+      cat(sprintf("  Overall %s = %.3f (%.3f-%.3f), p = %.4f %s\n", 
+                 effect_type, effect_value, result$CI_lower, result$CI_upper, 
+                 result$p_value, effect_desc))
       
       return(result)
     }, error = function(e) {
-      warning(paste("Error in overall analysis for", outcome, ":", e$message))
+      warning(paste("Error in analysis for", outcome, ":", e$message))
       return(NULL)
     })
-  } else {
+  } else if (!is_binary_exposure) {
+    # Only run quintile analysis for continuous exposures
     # Quintile-stratified analysis
     # Print diagnostic information about the quintiles
     quintile_counts <- table(df[[quint_var]])
@@ -195,8 +204,8 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
         next
       }
       
-      # Create formula with outcome and score variable
-      formula <- as.formula(paste(outcome, "~", score_var))
+      # Specify formula
+      formula <- reformulate(c(score_var, geno_batch, pcs_string), response = outcome)
       
       # Try-catch to prevent crashes during model fitting
       tryCatch({
@@ -207,29 +216,28 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
                      q, n_cases, nrow(subset_df), 100*n_cases/nrow(subset_df)))
           
           if (n_cases < 5) {
-            cat("    Skipping - too few cases (<5) for reliable logistic regression\n")
+            warning(sprintf("Too few cases (%d) for reliable logistic regression in quintile %d", n_cases, q))
             next
           }
           
-          # Use more robust fitting parameters and handle warnings
+          # Run model
           model <- suppressWarnings(
             glm(formula, 
                 data = subset_df, 
-                family = binomial,
-                control = list(maxit = 100, trace = FALSE))
+                family = binomial)
           )
           
           # Check for convergence
           if (!model$converged) {
-            cat("    Warning: Model did not converge - results may be unreliable\n")
+            warning(sprintf("Model for quintile %d did not converge - results may be unreliable", q))
           }
           
-          # Extract model summary without using tidy()
+          # Extract model summary 
           model_summary <- summary(model)
           coef_index <- which(rownames(model_summary$coefficients) == score_var)
           
           if (length(coef_index) == 0) {
-            cat("    Warning: Score variable not found in model coefficients\n")
+            warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
             next
           }
           
@@ -270,12 +278,12 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
         } else if (cat == "cont") {
           model <- lm(formula, data = subset_df)
           
-          # Extract model summary without using tidy()
+          # Extract model summary 
           model_summary <- summary(model)
           coef_index <- which(rownames(model_summary$coefficients) == score_var)
           
           if (length(coef_index) == 0) {
-            cat("    Warning: Score variable not found in model coefficients\n")
+            warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
             next
           }
           
@@ -309,7 +317,7 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
                      q, estimate, ci_lower, ci_upper, p_value))
         }
       }, error = function(e) {
-        cat(sprintf("    Error in quintile %d: %s\n", q, e$message))
+        warning(sprintf("Error in quintile %d analysis for %s: %s", q, outcome, e$message))
       })
     }
     
@@ -331,3 +339,54 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
     return(combined_results)
   }
 }
+
+################################################################################
+# Plotting function for GS results
+
+plot_strat <- function(dat, adjustment){
+
+  cont <- dat %>%
+    filter(cat == "cont") %>%
+    forestplot(
+      df = .,
+      name = outcome_full,
+      colour = .data[[adjustment]],
+      estimate = b,
+      logodds = FALSE,
+      xlab = "Mean difference in trait (95% CI) per SD decrease in Lp(a) genetic score",
+      pvalue = FDR
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.background = element_blank(),
+      legend.position = "none"
+    ) + ggtitle("Continuous outcomes") +
+    scale_color_manual(values = colours)
+  
+  bin <- dat %>%
+    filter(cat == "bin") %>%
+    forestplot(
+      df = .,
+      name = outcome_full,
+      estimate = b,
+      colour = .data[[adjustment]],
+      logodds = TRUE,
+      xlab = "Odds ratio for APPO (95% CI) per SD decrease in Lp(a) genetic score",
+      pvalue = FDR
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.background = element_blank()
+    ) + ggtitle("Binary outcomes") +
+    scale_color_manual(values = colours)
+  
+  cowplot::plot_grid(
+    bin, cont, 
+    ncol = 1, 
+    rel_heights = c(6, 1),
+    align = "v",
+    labels = NULL
+  ) %>%
+    cowplot::plot_grid(., ncol = 1, rel_heights = c(0.1, 1))
+}
+
