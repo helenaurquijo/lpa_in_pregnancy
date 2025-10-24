@@ -11,15 +11,17 @@
 # This dataset will underlie the genetic score and LoF analyses.
 ##
 
-# to upload this script to DNAnexus, run:
-# system("dx upload scripts/UKB_RAP/2_build_dataset.R")
-
-## Load packages
-if(!require(pacman)) install.packages("pacman")
-pacman::p_load(dplyr, readr, readxl, stringr)
+# N.B. To run this script, run:
+# system("dx download scripts/UKB_RAP/2_build_dataset.R")
+# and then
+# source("2_build_dataset.R")
+# in the RStudio console of your UKB-RAP Posit session.
 
 ################################################################################
 # Set up environment
+## Load packages
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(dplyr, readr, readxl, stringr)
 
 ## Download required data to RStudio session
 

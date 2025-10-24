@@ -187,20 +187,64 @@ colours <- c(
   "5" = '#ff5454ff'
 )
 
-png("lpa_levels_by_gs_quintile.png", width = 800, height = 600)
+medians <- gs_dataset %>%
+    group_by(gs_quint) %>%
+    summarise(
+      median_lpa = median(lpa_mes, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+png("lpa_levels_by_gs_quintile.png", width = 12, height = 8, units = "in", res = 300)
 ggplot(gs_dataset, aes(x = factor(gs_quint), y = lpa_mes, fill = factor(gs_quint))) +
   geom_violin(trim = FALSE, alpha = 0.5) +  # Add violin plot with 50% transparency
   geom_boxplot(width = 0.2, fill = "white", color = "black", alpha = 0.7, outlier.shape = NA) +  # Hide outlier points
   scale_fill_manual(values = colours) +  # Set colors for the violins
   scale_y_continuous(limits = c(0, NA)) +  # Set lower y-axis limit to 0, keep upper limit automatic
+  # Add median values as text labels on top
+  geom_text(
+    data = medians,
+    aes(x = gs_quint, y = median_lpa, label = sprintf("%.1f", median_lpa)),
+    vjust = -0.5,
+    size = 3.5,
+    fontface = "bold",
+    inherit.aes = FALSE
+  ) +
   labs(
     x = "Lp(a) Genetic Score Quintile",
-    y = "Lp(a) Levels (nmol/L)"
+    y = "Lp(a) Levels (nmol/L)",
+    caption = "N per quintile = 35097"
   ) +
   theme_minimal() +
   guides(fill = "none")
 dev.off()
+
 system('dx upload lpa_levels_by_gs_quintile.png --path results/genetic_score/', intern = TRUE)
+
+## Plot histogram of Lp(a) levels by GS quintile - 5 separate rows 
+
+png("lpa_levels_hist_by_gs_quintile.png", width = 16, height = 12, units = "in", res = 300)
+ggplot(gs_dataset, aes(x = lpa_mes, fill = factor(gs_quint))) +
+  geom_histogram(bins = 50, alpha = 0.8, color = "white", size = 0.2) +
+  facet_wrap(~ paste("Quintile", gs_quint), ncol = 1, scales = "free_y", 
+             labeller = labeller(.cols = function(x) paste("Genetic Score", x))) +
+  scale_fill_manual(values = colours) +
+  scale_x_continuous(limits = c(0, 200), breaks = seq(0, 200, 50)) +
+  labs(
+    x = "Lp(a) Levels (nmol/L)",
+    y = "Count",
+    fill = "GS Quintile"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, hjust = 0.5),
+    legend.position = "none"
+  )
+dev.off()
+
+system('dx upload lpa_levels_hist_by_gs_quintile.png --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
 # Association testing - overall and quintile-stratified analyses
