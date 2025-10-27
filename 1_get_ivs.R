@@ -280,5 +280,8 @@ fwrite(lpa_olink_exp_dat, file = "exp_dat_sens_lpa_olink.txt", sep = "\t", quote
 rsids_olink <- data.frame(lpa_olink_exp_dat$SNP)
 fwrite(rsids_olink, file = "rsids_sens_lpa_olink.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 
+## Final cleanup - remove tmp directory
+setwd(paste0(projectdir, "/data/exposures/raw/"))
+unlink("tmp", recursive = TRUE)
 
 q("no")
