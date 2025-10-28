@@ -191,6 +191,7 @@ medians <- gs_dataset %>%
     group_by(gs_quint) %>%
     summarise(
       median_lpa = median(lpa_mes, na.rm = TRUE),
+      n = sum(!is.na(lpa_mes)),  # Count non-NA observations for lpa_mes
       .groups = "drop"
     )
 
@@ -209,10 +210,18 @@ ggplot(gs_dataset, aes(x = factor(gs_quint), y = lpa_mes, fill = factor(gs_quint
     fontface = "bold",
     inherit.aes = FALSE
   ) +
+  # Add sample size labels below x-axis
+  geom_text(
+    data = medians,
+    aes(x = gs_quint, y = 210, label = paste0("n = ", n)),
+    vjust = -1,
+    size = 4,
+    color = "black",
+    inherit.aes = FALSE
+  ) +
   labs(
     x = "Lp(a) Genetic Score Quintile",
-    y = "Lp(a) Levels (nmol/L)",
-    caption = "N per quintile = 35097"
+    y = "Lp(a) Levels (nmol/L)"
   ) +
   theme_minimal() +
   guides(fill = "none")
@@ -222,13 +231,20 @@ system('dx upload lpa_levels_by_gs_quintile.png --path results/genetic_score/', 
 
 ## Plot histogram of Lp(a) levels by GS quintile - 5 separate rows 
 
-png("lpa_levels_hist_by_gs_quintile.png", width = 16, height = 12, units = "in", res = 300)
+# Calculate sample sizes for each quintile for histogram
+quintile_counts <- gs_dataset %>%
+  group_by(gs_quint) %>%
+  summarise(n = sum(!is.na(lpa_mes)), .groups = "drop")
+
+png("lpa_levels_hist_by_gs_quintile.png", width = 16, height = 14, units = "in", res = 300)
 ggplot(gs_dataset, aes(x = lpa_mes, fill = factor(gs_quint))) +
   geom_histogram(bins = 50, alpha = 0.8, color = "white", size = 0.2) +
-  facet_wrap(~ paste("Quintile", gs_quint), ncol = 1, scales = "free_y", 
-             labeller = labeller(.cols = function(x) paste("Genetic Score", x))) +
+  facet_wrap(~ paste0("Quintile ", gs_quint, " (n = ", 
+                     quintile_counts$n[match(gs_quint, quintile_counts$gs_quint)], ")"), 
+             ncol = 1) +  # Changed from free_y to free_x
   scale_fill_manual(values = colours) +
   scale_x_continuous(limits = c(0, 200), breaks = seq(0, 200, 50)) +
+  scale_y_continuous(limits = c(0, 11000)) +  # Fixed y-axis scale from 0 to 200
   labs(
     x = "Lp(a) Levels (nmol/L)",
     y = "Count",
@@ -245,6 +261,26 @@ ggplot(gs_dataset, aes(x = lpa_mes, fill = factor(gs_quint))) +
 dev.off()
 
 system('dx upload lpa_levels_hist_by_gs_quintile.png --path results/genetic_score/', intern = TRUE)
+
+## Compare number of individuals out of reportable range by GS quintile
+reportable_counts <- select(gs_dataset, gs_quint, lpa_mes, lpa_report) %>%
+  mutate(
+    reportable = case_when(
+      lpa_report == 4 ~ "too_low",
+      lpa_report == 5 ~ "too_high",
+      lpa_report == 1 ~ "within_range",
+      TRUE ~ "NA"
+    )
+  ) %>%
+  group_by(gs_quint, reportable) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = reportable, values_from = n, values_fill = 0)
+
+print(reportable_counts)
+
+# Save reportable counts
+readr::write_tsv(reportable_counts, "lpa_report_by_gs_quintile.tsv")
+system('dx upload lpa_report_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
 # Association testing - overall and quintile-stratified analyses

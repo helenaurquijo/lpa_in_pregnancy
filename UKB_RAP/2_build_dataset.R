@@ -93,6 +93,7 @@ dataset1 <- dataset %>%
     ICD10 = 'p41202',       # HES main ICD-10 codes
     ICD9 = 'p41203',        # HES main ICD9 codes
     lpa_mes = 'p30790_i0',  # Lipoprotein(a) measurements
+    lpa_report = 'p30796_i0', # Lipoprotein(a) reportability - contains if too low/high to measure
     geno_batch = 'p22000',  # Genotyping batch
     used_in_pc = 'p22020'   # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
   )
@@ -271,6 +272,7 @@ final_dataset <- dataset3 %>%
     bmi_kgm2,
     smoking,
     lpa_mes,
+    lpa_report,
     geno_batch,
     any_of(paste0("PC_", 1:40))  
   )
