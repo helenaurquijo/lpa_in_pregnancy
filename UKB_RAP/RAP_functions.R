@@ -64,113 +64,106 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
   
   if (is.null(quint_var) || is_binary_exposure) {
     # Overall analysis (not stratified by quintiles)
-    # If exposure is binary, we always run the overall analysis only
+    # If exposure is binary, this is automatically overall only
     formula <- reformulate(c(score_var, geno_batch, pcs_string), response = outcome)
     
-    # Try-catch to prevent crashes
-    tryCatch({
-      if (cat == "bin") {
-        # Check for complete separation risk
-        n_cases <- sum(df[[outcome]] == 1, na.rm = TRUE)
-        cat(sprintf("  Overall: %d cases out of %d (%.2f%%)\n", 
-                   n_cases, nrow(df), 100*n_cases/nrow(df)))
-        
-        if (n_cases < 5) {
-          warning("Too few cases (<5) for reliable logistic regression")
-          return(NULL)
-        }
-        
-        # Run model
-        model <- glm(formula, 
-                    data = df, 
-                    family = binomial,
-)
-        
-        # Extract model summary 
-        model_summary <- summary(model)
-        coef_index <- which(rownames(model_summary$coefficients) == score_var)
-        
-        if (length(coef_index) == 0) {
-          warning("Score variable not found in model coefficients")
-          return(NULL)
-        }
-        
-        # Calculate statistics manually
-        estimate <- model_summary$coefficients[coef_index, "Estimate"]
-        std_error <- model_summary$coefficients[coef_index, "Std. Error"]
-        p_value <- model_summary$coefficients[coef_index, "Pr(>|z|)"]
-        
-        # Calculate CI for log odds
-        ci_lower <- estimate - 1.96 * std_error
-        ci_upper <- estimate + 1.96 * std_error
-        
-        # Calculate OR and CI for OR
-        or <- exp(estimate)
-        or_ci_lower <- exp(ci_lower)
-        or_ci_upper <- exp(ci_upper)
-        
-        # Create result data frame with binary exposure flag
-        result <- data.frame(
-          outcome = outcome,
-          quintile = "overall",
-          b = estimate,
-          se = std_error,
-          OR = or,
-          p_value = p_value,
-          CI_lower = ci_lower,
-          CI_upper = ci_upper,
-        )
-        
-      } else if (cat == "cont") {
-        model <- lm(formula, data = df)
-        
-        # Extract model summary 
-        model_summary <- summary(model)
-        coef_index <- which(rownames(model_summary$coefficients) == score_var)
-        
-        if (length(coef_index) == 0) {
-          warning("Score variable not found in model coefficients")
-          return(NULL)
-        }
-        
-        # Calculate statistics manually
-        estimate <- model_summary$coefficients[coef_index, "Estimate"]
-        std_error <- model_summary$coefficients[coef_index, "Std. Error"]
-        p_value <- model_summary$coefficients[coef_index, "Pr(>|t|)"]
-        
-        # Calculate confidence intervals
-        ci_lower <- estimate - 1.96 * std_error
-        ci_upper <- estimate + 1.96 * std_error
-        
-        # Create result data frame
-        result <- data.frame(
-          outcome = outcome,
-          quintile = "overall",
-          b = estimate,
-          se = std_error,
-          OR = NA,
-          p_value = p_value,
-          CI_lower = ci_lower,
-          CI_upper = ci_upper,
-        )
-      } else {
+    if (cat == "bin") {
+      # Check for complete separation risk
+      n_cases <- sum(df[[outcome]] == 1, na.rm = TRUE)
+      cat(sprintf("  Overall: %d cases out of %d (%.2f%%)\n", 
+                 n_cases, nrow(df), 100*n_cases/nrow(df)))
+      
+      if (n_cases < 5) {
+        warning("Too few cases (<5) for reliable logistic regression")
         return(NULL)
       }
       
-      # Print appropriate effect description based on exposure type
-      effect_type <- if(cat == "bin") "OR" else "Beta"
-      effect_desc <- if(is_binary_exposure) "comparing groups" else "per SD increase"
-      effect_value <- if(cat == "bin") result$OR else result$b
+      # Run model
+      model <- glm(formula, 
+                  data = df, 
+                  family = binomial)
       
-      cat(sprintf("  Overall %s = %.3f (%.3f-%.3f), p = %.4f %s\n", 
-                 effect_type, effect_value, result$CI_lower, result$CI_upper, 
-                 result$p_value, effect_desc))
+      # Extract model summary 
+      model_summary <- summary(model)
+      coef_index <- which(rownames(model_summary$coefficients) == score_var)
       
-      return(result)
-    }, error = function(e) {
-      warning(paste("Error in analysis for", outcome, ":", e$message))
+      if (length(coef_index) == 0) {
+        warning("Score variable not found in model coefficients")
+        return(NULL)
+      }
+      
+      # Calculate statistics manually
+      estimate <- model_summary$coefficients[coef_index, "Estimate"]
+      std_error <- model_summary$coefficients[coef_index, "Std. Error"]
+      p_value <- model_summary$coefficients[coef_index, "Pr(>|z|)"]
+      
+      # Calculate CI for log odds
+      ci_lower <- estimate - 1.96 * std_error
+      ci_upper <- estimate + 1.96 * std_error
+      
+      # Calculate OR and CI for OR
+      or <- exp(estimate)
+      or_ci_lower <- exp(ci_lower)
+      or_ci_upper <- exp(ci_upper)
+      
+      # Create result data frame with binary exposure flag
+      result <- data.frame(
+        outcome = outcome,
+        quintile = "overall",
+        b = estimate,
+        se = std_error,
+        OR = or,
+        p_value = p_value,
+        CI_lower = ci_lower,
+        CI_upper = ci_upper
+      )
+      
+    } else if (cat == "cont") {
+      model <- lm(formula, data = df)
+      
+      # Extract model summary 
+      model_summary <- summary(model)
+      coef_index <- which(rownames(model_summary$coefficients) == score_var)
+      
+      if (length(coef_index) == 0) {
+        warning("Score variable not found in model coefficients")
+        return(NULL)
+      }
+      
+      # Calculate statistics manually
+      estimate <- model_summary$coefficients[coef_index, "Estimate"]
+      std_error <- model_summary$coefficients[coef_index, "Std. Error"]
+      p_value <- model_summary$coefficients[coef_index, "Pr(>|t|)"]
+      
+      # Calculate confidence intervals
+      ci_lower <- estimate - 1.96 * std_error
+      ci_upper <- estimate + 1.96 * std_error
+      
+      # Create result data frame 
+      result <- data.frame(
+        outcome = outcome,
+        quintile = "overall",
+        b = estimate,
+        se = std_error,
+        OR = NA,
+        p_value = p_value,
+        CI_lower = ci_lower,
+        CI_upper = ci_upper
+      )
+    } else {
       return(NULL)
-    })
+    }
+    
+    # Print appropriate effect description based on exposure type
+    effect_type <- if(cat == "bin") "OR" else "Beta"
+    effect_desc <- if(is_binary_exposure) "comparing groups" else "per SD increase"
+    effect_value <- if(cat == "bin") result$OR else result$b
+    
+    cat(sprintf("  Overall %s = %.3f (%.3f-%.3f), p = %.4f %s\n", 
+               effect_type, effect_value, result$CI_lower, result$CI_upper, 
+               result$p_value, effect_desc))
+    
+    return(result)
   } else if (!is_binary_exposure) {
     # Only run quintile analysis for continuous exposures
     # Quintile-stratified analysis
@@ -207,118 +200,113 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
       # Specify formula
       formula <- reformulate(c(score_var, geno_batch, pcs_string), response = outcome)
       
-      # Try-catch to prevent crashes during model fitting
-      tryCatch({
-        if (cat == "bin") {
-          # Check for complete separation risk
-          n_cases <- sum(subset_df[[outcome]] == 1, na.rm = TRUE)
-          cat(sprintf("    Q%d: %d cases out of %d (%.2f%%)\n", 
-                     q, n_cases, nrow(subset_df), 100*n_cases/nrow(subset_df)))
-          
-          if (n_cases < 5) {
-            warning(sprintf("Too few cases (%d) for reliable logistic regression in quintile %d", n_cases, q))
-            next
-          }
-          
-          # Run model
-          model <- suppressWarnings(
-            glm(formula, 
-                data = subset_df, 
-                family = binomial)
-          )
-          
-          # Check for convergence
-          if (!model$converged) {
-            warning(sprintf("Model for quintile %d did not converge - results may be unreliable", q))
-          }
-          
-          # Extract model summary 
-          model_summary <- summary(model)
-          coef_index <- which(rownames(model_summary$coefficients) == score_var)
-          
-          if (length(coef_index) == 0) {
-            warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
-            next
-          }
-          
-          # Calculate statistics manually
-          estimate <- model_summary$coefficients[coef_index, "Estimate"]
-          std_error <- model_summary$coefficients[coef_index, "Std. Error"]
-          p_value <- model_summary$coefficients[coef_index, "Pr(>|z|)"]
-          
-          # Calculate CI for log odds
-          ci_lower <- estimate - 1.96 * std_error
-          ci_upper <- estimate + 1.96 * std_error
-          
-          # Calculate OR and CI for OR
-          or <- exp(estimate)
-          or_ci_lower <- exp(ci_lower)
-          or_ci_upper <- exp(ci_upper)
-          
-          # Create result data frame
-          this_result <- data.frame(
-            outcome = outcome,
-            quintile = q,
-            b = estimate,  # Log odds for binary outcomes
-            se = std_error, # Standard error
-            OR = or,       # Odds ratio
-            p_value = p_value,
-            CI_lower = ci_lower,
-            CI_upper = ci_upper,
-            stringsAsFactors = FALSE
-          )
-          
-          # Add to results list
-          results_list[[length(results_list) + 1]] <- this_result
-          
-          # Print concise summary for this quintile
-          cat(sprintf("    Q%d OR = %.3f (%.3f-%.3f), p = %.4f\n", 
-                     q, or, or_ci_lower, or_ci_upper, p_value))
-          
-        } else if (cat == "cont") {
-          model <- lm(formula, data = subset_df)
-          
-          # Extract model summary 
-          model_summary <- summary(model)
-          coef_index <- which(rownames(model_summary$coefficients) == score_var)
-          
-          if (length(coef_index) == 0) {
-            warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
-            next
-          }
-          
-          # Calculate statistics manually
-          estimate <- model_summary$coefficients[coef_index, "Estimate"]
-          std_error <- model_summary$coefficients[coef_index, "Std. Error"]
-          p_value <- model_summary$coefficients[coef_index, "Pr(>|t|)"]
-          
-          # Calculate confidence intervals
-          ci_lower <- estimate - 1.96 * std_error
-          ci_upper <- estimate + 1.96 * std_error
-          
-          # Create result data frame
-          this_result <- data.frame(
-            outcome = outcome,
-            quintile = q,
-            b = estimate,  # Beta for continuous outcomes
-            se = std_error, # Standard error
-            OR = NA,       # NA for continuous outcomes
-            p_value = p_value,
-            CI_lower = ci_lower,
-            CI_upper = ci_upper,
-            stringsAsFactors = FALSE
-          )
-          
-          # Add to results list
-          results_list[[length(results_list) + 1]] <- this_result
-          
-          # Print concise summary for this quintile
-          cat(sprintf("    Q%d Beta = %.3f (%.3f-%.3f), p = %.4f\n", 
-                     q, estimate, ci_lower, ci_upper, p_value))
+      if (cat == "bin") {
+        # Check for complete separation risk
+        n_cases <- sum(subset_df[[outcome]] == 1, na.rm = TRUE)
+        cat(sprintf("    Q%d: %d cases out of %d (%.2f%%)\n", 
+                   q, n_cases, nrow(subset_df), 100*n_cases/nrow(subset_df)))
+        
+        if (n_cases < 5) {
+          warning(sprintf("Too few cases (%d) for reliable logistic regression in quintile %d", n_cases, q))
+          next
         }
-      }, error = function(e) {
-        warning(sprintf("Error in quintile %d analysis for %s: %s", q, outcome, e$message))
-      })
+        
+        # Run model
+        model <- suppressWarnings(
+          glm(formula, 
+              data = subset_df, 
+              family = binomial)
+        )
+        
+        # Check for convergence
+        if (!model$converged) {
+          warning(sprintf("Model for quintile %d did not converge - results may be unreliable", q))
+        }
+        
+        # Extract model summary 
+        model_summary <- summary(model)
+        coef_index <- which(rownames(model_summary$coefficients) == score_var)
+        
+        if (length(coef_index) == 0) {
+          warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
+          next
+        }
+        
+        # Calculate statistics manually
+        estimate <- model_summary$coefficients[coef_index, "Estimate"]
+        std_error <- model_summary$coefficients[coef_index, "Std. Error"]
+        p_value <- model_summary$coefficients[coef_index, "Pr(>|z|)"]
+        
+        # Calculate CI for log odds
+        ci_lower <- estimate - 1.96 * std_error
+        ci_upper <- estimate + 1.96 * std_error
+        
+        # Calculate OR and CI for OR
+        or <- exp(estimate)
+        or_ci_lower <- exp(ci_lower)
+        or_ci_upper <- exp(ci_upper)
+        
+        # Create result data frame
+        this_result <- data.frame(
+          outcome = outcome,
+          quintile = q,
+          b = estimate,  # Log odds for binary outcomes
+          se = std_error, # Standard error
+          OR = or,       # Odds ratio
+          p_value = p_value,
+          CI_lower = ci_lower,
+          CI_upper = ci_upper,
+          stringsAsFactors = FALSE
+        )
+        
+        # Add to results list
+        results_list[[length(results_list) + 1]] <- this_result
+        
+        # Print concise summary for this quintile
+        cat(sprintf("    Q%d OR = %.3f (%.3f-%.3f), p = %.4f\n", 
+                   q, or, or_ci_lower, or_ci_upper, p_value))
+        
+      } else if (cat == "cont") {
+        model <- lm(formula, data = subset_df)
+        
+        # Extract model summary 
+        model_summary <- summary(model)
+        coef_index <- which(rownames(model_summary$coefficients) == score_var)
+        
+        if (length(coef_index) == 0) {
+          warning(sprintf("Score variable not found in model coefficients for quintile %d", q))
+          next
+        }
+        
+        # Calculate statistics manually
+        estimate <- model_summary$coefficients[coef_index, "Estimate"]
+        std_error <- model_summary$coefficients[coef_index, "Std. Error"]
+        p_value <- model_summary$coefficients[coef_index, "Pr(>|t|)"]
+        
+        # Calculate confidence intervals
+        ci_lower <- estimate - 1.96 * std_error
+        ci_upper <- estimate + 1.96 * std_error
+        
+        # Create result data frame
+        this_result <- data.frame(
+          outcome = outcome,
+          quintile = q,
+          b = estimate,  # Beta for continuous outcomes
+          se = std_error, # Standard error
+          OR = NA,       # NA for continuous outcomes
+          p_value = p_value,
+          CI_lower = ci_lower,
+          CI_upper = ci_upper,
+          stringsAsFactors = FALSE
+        )
+        
+        # Add to results list
+        results_list[[length(results_list) + 1]] <- this_result
+        
+        # Print concise summary for this quintile
+        cat(sprintf("    Q%d Beta = %.3f (%.3f-%.3f), p = %.4f\n", 
+                   q, estimate, ci_lower, ci_upper, p_value))
+      }
     }
     
     # Check if any results were collected
@@ -337,6 +325,10 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
                paste(sort(quintiles_found), collapse=", ")))
     
     return(combined_results)
+  } else {
+    # Add a default return for any case not caught above
+    warning(paste("Analysis not performed for", outcome, "- no suitable analysis branch selected"))
+    return(NULL)
   }
 }
 
@@ -383,10 +375,70 @@ plot_strat <- function(dat, adjustment){
   cowplot::plot_grid(
     bin, cont, 
     ncol = 1, 
-    rel_heights = c(6, 1),
+    rel_heights = c(6.5, 1),
     align = "v",
     labels = NULL
   ) %>%
     cowplot::plot_grid(., ncol = 1, rel_heights = c(0.1, 1))
 }
 
+################################################################################
+# Function to create a violin plot for lp(a) levels by genotype
+
+create_violin_plot <- function(data, variant) {
+  # Filter out NA values and convert genotype to factor with proper labels
+  plot_data <- data %>%
+    filter(!is.na(.data[[variant]]), !is.na(lpa_mes)) %>%
+    mutate(
+      genotype = factor(
+        .data[[variant]],
+        levels = c("0", "1", "2"),
+        labels = c("WT", "HET", "HOM")
+      )
+    )
+  
+  # Check sample sizes for each genotype
+  sample_sizes <- plot_data %>%
+    group_by(genotype) %>%
+    summarise(n = n(), .groups = "drop")
+  
+  print(paste("Sample sizes:", paste(sample_sizes$genotype, "=", sample_sizes$n, collapse = ", ")))
+  
+  # Calculate median values for each genotype
+  median_values <- plot_data %>%
+    group_by(genotype) %>%
+    summarise(
+      median_lpa = median(lpa_mes, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  # Create the violin plot with boxplot overlay
+  p <- ggplot(plot_data, aes(x = genotype, y = lpa_mes, fill = genotype)) +
+    geom_violin(trim = FALSE, alpha = 0.7, scale = "width") +  # Increased alpha and added scale parameter
+    geom_boxplot(width = 0.2, fill = "white", alpha = 0.8, outlier.size = 0.3) +  # Reduced boxplot width
+    # Add median values as text labels on top
+    geom_text(
+      data = median_values,
+      aes(x = genotype, y = median_lpa, label = sprintf("%.1f", median_lpa)),
+      vjust = -0.5,
+      size = 3,
+      fontface = "bold",
+      inherit.aes = FALSE
+    ) +
+    labs(
+      title = paste("Lp(a) levels by", variant, "genotype"),
+      x = "Genotype",
+      y = "Lp(a) measurement (nmol/L)",
+      caption = paste0("n(WT)=", sum(plot_data$genotype == "WT", na.rm = TRUE),
+                      ", n(HET)=", sum(plot_data$genotype == "HET", na.rm = TRUE), 
+                      ", n(HOM)=", sum(plot_data$genotype == "HOM", na.rm = TRUE))
+    ) +
+    theme_classic() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 14),
+      legend.position = "none"
+    ) +
+    scale_fill_brewer(palette = "Set1")
+  
+  return(p)
+}
