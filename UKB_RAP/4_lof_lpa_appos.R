@@ -6,6 +6,12 @@
 # 
 ##
 
+# N.B. To run this script, run:
+# system("dx download scripts/UKB_RAP/4_lof_lpa_appos.R")
+# and then
+# source("4_lof_lpa_appos.R")
+# in the RStudio console of your UKB-RAP Posit session. Say yes to creating a
+# personal library and updating all packages when prompted.
 
 ################################################################################
 # Set up environment
@@ -26,8 +32,11 @@ pacman::p_load(
 ## Install ukbrapR and ggforesplot packages from GitHub
 remotes::install_github("lcpilling/ukbrapR")
 library(ukbrapR)
+
 devtools::install_github("NightingaleHealth/ggforestplot")
 library(ggforestplot)
+#  N.B ggforest uses a deprecated ggplot2 function, using suppressWarnings()
+#     until this is fixed. 
 
 ## Install Bioconductor utilities
 if (!require("BiocManager", quietly = TRUE))
@@ -275,39 +284,42 @@ to_plot <- results %>%
 
 
 ## Plot 
+suppressWarnings(
+  cont <- to_plot %>%
+    filter(cat == "cont") %>%
+    forestplot(
+      df = .,
+      name = outcome_full,
+      estimate = b,
+      logodds = FALSE,
+      xlab = "Mean difference in trait (95% CI)",
+      pvalue = FDR
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.background = element_blank(),
+      legend.position = "none"
+    ) + ggtitle("Continuous outcomes") +
+    scale_color_manual(values = colours)
+)
 
-cont <- to_plot %>%
-  filter(cat == "cont") %>%
-  forestplot(
-    df = .,
-    name = outcome_full,
-    estimate = b,
-    logodds = FALSE,
-    xlab = "Mean difference in trait (95% CI)",
-    pvalue = FDR
-  ) +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    panel.background = element_blank(),
-    legend.position = "none"
-  ) + ggtitle("Continuous outcomes") +
-  scale_color_manual(values = colours)
-  
-bin <- to_plot %>%
-  filter(cat == "bin") %>%
-  forestplot(
-    df = .,
-    name = outcome_full,
-    estimate = b,
-    logodds = TRUE,
-    xlab = "Odds ratio for APPO (95% CI)",
-    pvalue = FDR
-  ) +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    panel.background = element_blank()
-  ) + ggtitle("Binary outcomes") +
-  scale_color_manual(values = colours)
+suppressWarnings(
+  bin <- to_plot %>%
+    filter(cat == "bin") %>%
+    forestplot(
+      df = .,
+      name = outcome_full,
+      estimate = b,
+      logodds = TRUE,
+      xlab = "Odds ratio for APPO (95% CI)",
+      pvalue = FDR
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.background = element_blank()
+    ) + ggtitle("Binary outcomes") +
+    scale_color_manual(values = colours)
+)
 
 png("lpa_lof_x_appo.png", width = 14, height = 12, units = "in", res = 300)  
 

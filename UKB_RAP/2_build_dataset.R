@@ -116,7 +116,7 @@ dim(dataset2)
 # [1] 175485     66
 
 ################################################################################
-# Create thrombotic event variables from ICD codes
+# Create thrombotic event during pregnancy variables from ICD codes
 
 ## Get thrombotic events
 dataset3 <- dataset2 %>%
@@ -255,7 +255,7 @@ if(length(out_info$outcome) > 0) {
         ifelse(!is.na(outcome_descriptions[o]), outcome_descriptions[o], o)
       }),
       Count = sapply(outcomes_present, function(o) {
-        summarise_variable(dataset3, o, outcome_types[o])
+        summarise_variable(dataset4, o, outcome_types[o])
       }),
       stringsAsFactors = FALSE
     )

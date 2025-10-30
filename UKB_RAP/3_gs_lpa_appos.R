@@ -123,7 +123,7 @@ system('dx upload lpa_gs_distribution.png --path results/genetic_score/', intern
 outcome_list <- c(
   "any_event", 
   "venous_event", 
-  "atheros_event", 
+  "atheros_event",
   "cad_event",
   out_info$outcome[out_info$cat == "bin"]
   )
@@ -205,7 +205,7 @@ ggplot(gs_dataset, aes(x = factor(gs_quint), y = lpa_mes, fill = factor(gs_quint
   geom_violin(trim = FALSE, alpha = 0.5) +  # Add violin plot with 50% transparency
   geom_boxplot(width = 0.2, fill = "white", color = "black", alpha = 0.7, outlier.shape = NA) +  # Hide outlier points
   scale_fill_manual(values = colours) +  # Set colors for the violins
-  scale_y_continuous(limits = c(0, NA)) +  # Set lower y-axis limit to 0, keep upper limit automatic
+  scale_y_continuous(limits = c(0, 210)) + # upper limit is 189 but this gives space for n labels
   # Add median values as text labels on top
   geom_text(
     data = medians,
@@ -243,7 +243,7 @@ quintile_counts <- gs_dataset %>%
 
 png("lpa_levels_hist_by_gs_quintile.png", width = 16, height = 14, units = "in", res = 300)
 ggplot(gs_dataset, aes(x = lpa_mes, fill = factor(gs_quint))) +
-  geom_histogram(bins = 50, alpha = 0.8, color = "white", size = 0.2) +
+  geom_histogram(bins = 50, alpha = 0.8, color = "white") +
   facet_wrap(~ paste0("Quintile ", gs_quint, " (n = ", 
                      quintile_counts$n[match(gs_quint, quintile_counts$gs_quint)], ")"), 
              ncol = 1) +  # Changed from free_y to free_x
@@ -286,6 +286,37 @@ print(reportable_counts)
 # Save reportable counts
 readr::write_tsv(reportable_counts, "lpa_report_by_gs_quintile.tsv")
 system('dx upload lpa_report_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
+
+################################################################################
+# Compare smoking and BMI across GS quintiles
+
+## Summarise mean BMI and smoking status by GS quintile
+summary_by_quintile <- gs_dataset %>%
+  group_by(gs_quint) %>%
+  summarise(
+    n_total = n(),
+    mean_bmi = mean(bmi_kgm2, na.rm = TRUE),
+    sd_bmi = sd(bmi_kgm2, na.rm = TRUE),
+    bmi_missing = sum(is.na(bmi_kgm2)),
+    # Smoking counts (0 = never, 1 = previous, 2 = current)
+    smoking_never = sum(smoking == 0, na.rm = TRUE),
+    smoking_previous = sum(smoking == 1, na.rm = TRUE), 
+    smoking_current = sum(smoking == 2, na.rm = TRUE),
+    smoking_missing = sum(is.na(smoking)),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Calculate smoking percentages
+    smoking_never_pct = round(smoking_never / (n_total - smoking_missing) * 100, 1),
+    smoking_previous_pct = round(smoking_previous / (n_total - smoking_missing) * 100, 1),
+    smoking_current_pct = round(smoking_current / (n_total - smoking_missing) * 100, 1)
+  ) 
+
+print(summary_by_quintile)
+
+## Save summary
+readr::write_tsv(summary_by_quintile, "summary_by_gs_quintile.tsv")
+system('dx upload summary_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
 # Association testing - overall and quintile-stratified analyses
@@ -364,15 +395,17 @@ colours <- c(
 
 ## Plot 
 png("lpa_gs_x_appo.png", width = 14, height = 13, units = "in", res = 300)
-plot_strat(to_plot, "quintile")
+suppressWarnings(plot_strat(to_plot, "quintile"))
 dev.off()
 
 ## Plot without thrombotic events
-png("lpa_gs_x_appo_no_thrombotic.png", width = 14, height = 12, units = "in", res = 300)
-plot_strat(
-  to_plot %>% filter(!outcome %in% c("any_event", "venous_event", "atheros_event")), 
-  "quintile"
+png("lpa_gs_x_appo_no_thrombotic.png", width = 14, height = 13, units = "in", res = 300)
+suppressWarnings(
+  plot_strat(
+    to_plot %>% filter(!outcome %in% c("any_event", "venous_event", "atheros_event")), 
+    "quintile"
   )
+)
 dev.off()
 
 ## Upload plots
