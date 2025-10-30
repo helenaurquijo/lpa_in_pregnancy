@@ -218,7 +218,7 @@ print(reportable_counts)
 
 # Save reportable counts
 readr::write_tsv(reportable_counts, "lpa_report_by_lof_geno.tsv")
-system('dx upload lpa_report_by_lof_geno.tsv --path results/genetic_score/', intern = TRUE)
+system('dx upload lpa_report_by_lof_geno.tsv --path results/lof/', intern = TRUE)
 
 ################################################################################
 # Test association of homozygosity for LoF variants with APPOs

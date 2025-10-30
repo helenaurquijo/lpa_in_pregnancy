@@ -256,7 +256,7 @@ print(all_tallies)
 
 # Save the tally to a file
 write.csv(all_tallies, "variable_tally.csv", row.names = FALSE)
-system('dx upload variable_tally.csv --dest data/UKB_RAP/', intern = TRUE)
+system('dx upload variable_tally.csv --dest results/UKB_RAP/', intern = TRUE)
 
 ################################################################################
 # Clean and save final dataset
