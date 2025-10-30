@@ -1,5 +1,5 @@
 ################################################################################
-#                        Genetic score LPA x APPOs in UK Biobank                         #
+#                        Genetic score LPA x APPOs in UK Biobank               #
 ################################################################################
 
 ##
@@ -12,7 +12,8 @@
 # system("dx download scripts/UKB_RAP/3_gs_lpa_appos.R")
 # and then
 # source("3_gs_lpa_appos.R")
-# in the RStudio console of your UKB-RAP Posit session.
+# in the RStudio console of your UKB-RAP Posit session. Say yes to updating
+# all packages when prompted.
 
 ################################################################################
 # Set up environment
@@ -33,8 +34,11 @@ pacman::p_load(
 ## Install ukbrapR and ggforesplot packages from GitHub
 remotes::install_github("lcpilling/ukbrapR")
 library(ukbrapR)
+
 devtools::install_github("NightingaleHealth/ggforestplot")
 library(ggforestplot)
+#  N.B ggforest uses a deprecated ggplot2 function, using suppressWarnings()
+#     until this is fixed. 
 
 ## Download required data to RStudio session
 
@@ -98,11 +102,11 @@ hist(gs_dataset$gs, breaks = 100)
 dev.off()
 summary(gs_dataset$gs)
 
-## Visualise GS quintiles
+## Check GS quintiles
 table(gs_dataset$gs_quint)
 
 dim(gs_dataset)
-# [1] 224313     58
+# [1] 175485     67
 
 ## Save dataset with GS
 readr::write_tsv(gs_dataset, "lpa_appos_dataset_with_pgs.tsv")
@@ -120,6 +124,7 @@ outcome_list <- c(
   "any_event", 
   "venous_event", 
   "atheros_event", 
+  "cad_event",
   out_info$outcome[out_info$cat == "bin"]
   )
 
@@ -288,10 +293,10 @@ system('dx upload lpa_report_by_gs_quintile.tsv --path results/genetic_score/', 
 ## Create dataframe for function arguments to iterate through
 args <- select(out_info, outcome, cat)
 
-## Add the composite outcomes to the args dataframe
+## Add the additional outcomes to the args dataframe
 composite_outcomes <- data.frame(
-  outcome = c("any_event", "venous_event", "atheros_event"),
-  cat = rep("bin", 3)
+  outcome = c("any_event", "venous_event", "atheros_event", "cad_event"),
+  cat = rep("bin", 4)
 )
 args <- bind_rows(args, composite_outcomes) %>%
   # Only keep outcomes that exist in dataset
@@ -335,10 +340,11 @@ to_plot <- combined %>%
       outcome == "any_event" ~ "Any thrombotic event",
       outcome == "venous_event" ~ "Venous thrombotic event",
       #outcome == "atheros_event" ~ "Atherosclerotic thrombotic event",
+      outcome == "cad_event" ~ "Coronary artery disease",
       TRUE ~ out_info$outcome_full[match(outcome, out_info$outcome)]
     ),
     cat = case_when(
-      outcome %in% c("any_event", "venous_event", "atheros_event") ~ "bin",
+      !outcome %in% out_info$outcome ~ "bin",
       TRUE ~ out_info$cat[match(outcome, out_info$outcome)]
     ),
     quintile = as.character(quintile),

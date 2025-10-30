@@ -90,12 +90,13 @@ dataset1 <- dataset %>%
     any_of(paste0("p22009_a", 1:40))
   ) %>%
   rename(
-    ICD10 = 'p41202',       # HES main ICD-10 codes
-    ICD9 = 'p41203',        # HES main ICD9 codes
-    lpa_mes = 'p30790_i0',  # Lipoprotein(a) measurements
+    OPCS4 = 'p41200',         # HES main OPCS-4 codes
+    ICD10 = 'p41202',         # HES main ICD-10 codes
+    ICD9 = 'p41203',          # HES main ICD9 codes
+    lpa_mes = 'p30790_i0',    # Lipoprotein(a) measurements
     lpa_report = 'p30796_i0', # Lipoprotein(a) reportability - contains if too low/high to measure
-    geno_batch = 'p22000',  # Genotyping batch
-    used_in_pc = 'p22020'   # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
+    geno_batch = 'p22000',    # Genotyping batch
+    used_in_pc = 'p22020'     # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
   )
 
 dim(dataset1)
@@ -163,6 +164,20 @@ dataset3 <- dataset2 %>%
 dim(dataset3)
 # [1] 185651     76
 
+################################################################################
+# Create CAD variable from ICD-10 and OPCS-4 codes (positive control outcome)
+
+# From:
+#    - ICD-10 codes I20-I25: ischaemic heart disease, or
+#    - OPCS-4 code K40-K46: coronary artery bypass grafting, or 
+#    - OPCS K49-K51: percutaneous transluminal coronary angioplasty
+
+dataset4 <- dataset3 %>%
+  dplyr::mutate(
+    icd10_cad = str_detect(ICD10, paste0("I2[0-5]")),
+    opcs4_cad = str_detect(OPCS4, paste0("K4[0-6]|K49|K5[01]")),
+    cad_event = ifelse(icd10_cad | opcs4_cad, 1, 0)
+  )
 
 ################################################################################
 # Create outcome counts
@@ -183,7 +198,7 @@ tally_data[["icd10"]] <- data.frame(
   Code = icd10_venous_codes,
   Description = icd10_descriptions,
   Count = sapply(icd10_venous_codes, function(code) {
-    sum(str_detect(dataset3$ICD10, code), na.rm = TRUE)
+    sum(str_detect(dataset4$ICD10, code), na.rm = TRUE)
   }),
   stringsAsFactors = FALSE
 )
@@ -201,32 +216,33 @@ tally_data[["icd9"]] <- data.frame(
   Code = icd9_venous_codes,
   Description = icd9_descriptions,
   Count = sapply(icd9_venous_codes, function(code) {
-    sum(str_detect(dataset3$ICD9, code), na.rm = TRUE)
+    sum(str_detect(dataset4$ICD9, code), na.rm = TRUE)
   }),
   stringsAsFactors = FALSE
 )
 
 # 3. Event indicators
-event_indicators <- c("any_event", "venous_event", "atheros_event")
+event_indicators <- c("any_event", "venous_event", "atheros_event", "cad_event")
 event_descriptions <- c(
   "Any thrombotic event (venous or atherosclerotic)",
   "Venous thrombotic event",
-  "Atherosclerotic event"
+  "Atherosclerotic event",
+  "Coronary artery disease event"
 )
 tally_data[["events"]] <- data.frame(
   Category = rep("Outcomes", length(event_indicators)),
   Code = event_indicators,
   Description = event_descriptions,
   Count = sapply(event_indicators, function(ind) {
-    count <- sum(dataset3[[ind]], na.rm = TRUE)
-    sprintf("%d (%.2f%%)", count, count/nrow(dataset3)*100)
+    count <- sum(dataset4[[ind]], na.rm = TRUE)
+    sprintf("%d (%.2f%%)", count, count/nrow(dataset4)*100)
   }),
   stringsAsFactors = FALSE
 )
 
 # 4. MR-PREG outcome variables
 if(length(out_info$outcome) > 0) {
-  outcomes_present <- intersect(out_info$outcome, names(dataset3))
+  outcomes_present <- intersect(out_info$outcome, names(dataset4))
   if(length(outcomes_present) > 0) {
     # Create mapping of outcomes to types and descriptions
     outcome_types <- setNames(out_info$cat, out_info$outcome)
@@ -262,13 +278,14 @@ system('dx upload variable_tally.csv --dest results/UKB_RAP/', intern = TRUE)
 # Clean and save final dataset
 
 ## Clean analysis dataset
-final_dataset <- dataset3 %>%
+final_dataset <- dataset4 %>%
   dplyr::select(
     eid,
     any_of(out_info$outcome),  
     any_event,
     venous_event,
     atheros_event,
+    cad_event,
     bmi_kgm2,
     smoking,
     lpa_mes,
