@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=02:00:00
-#SBATCH --mem=200mb
+#SBATCH --mem=3gb
 #SBATCH --profile=task
 
 # Exit immediately if any command fails
@@ -37,9 +37,4 @@ R CMD BATCH ${projectdir}/scripts/10_wlm_MR.R ${projectdir}/logs/10_wlm_MR.Rout
 #  Runs leave-one-out MR analysis for sensitivity testing
 echo "Running 11_loo_MR.R..."
 R CMD BATCH ${projectdir}/scripts/11_loo_MR.R ${projectdir}/logs/11_loo_MR.Rout
-
-## Run 12_sample_overlap.R
-#  Analyzes sample overlap between exposure and outcome datasets
-echo "Running 12_sample_overlap.R..."
-R CMD BATCH ${projectdir}/scripts/12_sample_overlap.R ${projectdir}/logs/12_sample_overlap.Rout
 

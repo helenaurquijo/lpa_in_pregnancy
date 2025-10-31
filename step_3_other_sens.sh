@@ -1,0 +1,29 @@
+#!/bin/bash
+#SBATCH --job-name=other_sens
+#SBATCH --partition=mrcieu
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=02:00:00
+#SBATCH --mem=200mb
+#SBATCH --profile=task
+
+# Exit immediately if any command fails
+set -e
+
+echo "Running script: $(basename $0)"
+echo "Script run at: $(date '+%Y-%m-%d %H:%M:%S')"
+
+source scripts/config.env
+
+module load languages/R/4.3.3
+
+## Run 12_sample_overlap.R
+#  Analyzes sample overlap between exposure and outcome datasets
+echo "Running 12_sample_overlap.R..."
+R CMD BATCH ${projectdir}/scripts/12_sample_overlap.R ${projectdir}/logs/12_sample_overlap.Rout
+
+## Run 13_coloc.R
+#  Performs colocalization analysis
+echo "Running 13_coloc.R..."
+R CMD BATCH ${projectdir}/scripts/13_coloc.R ${projectdir}/logs/13_coloc.Rout
