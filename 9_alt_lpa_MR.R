@@ -90,22 +90,23 @@ res <-
   bind_rows() %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
-    # 10nmol/L is approx 4.65mg/dL
-    b = case_when(
-      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ -b * 4.65,
-      TRUE ~ -b  # Default (keeping original negation)
-    ),
-    se = case_when(
-      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ -se * 4.65,
-      TRUE ~ -se  # Default (keeping original negation)
-    ),
+    # to reflect the effect of lowering Lp(a)
+    b = -b
   ) %>%
   mutate(
-    # Conditionally calculate OR, UCI, and LCI for binary outcomes
-    OR = if_else(cat == "bin", exp(b), NA_real_),
-    UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
-    LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
+    # to reflect the effect of lowering Lp(a) by 10nmol/L
+    # 210nmol/L is approx 97.65mg/dL
+    b_scaled = case_when(
+      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ b * 97.65,
+      TRUE ~ b  # Default 
+    ),
+    se_scaled = case_when(
+      exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ se * 97.65,
+      TRUE ~ se  
+    ),
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
     FDR = p.adjust(pval, method = "fdr")
   )
 
@@ -135,11 +136,13 @@ to_plot <- bind_rows(main_res, res)
 
 colours <- qualitative_hcl(3, palette = "Dark 3")
 
-plot_mr_special(to_plot, "exposure") %>%
-  ggsave(., 
-    file = "alt_lpa_mr_res.png",
-    width = 14,
-    height = 8,
-    dpi = 300)
+suppressWarnings(
+  plot_mr_special(to_plot, "exposure", scaled = TRUE) %>%
+    ggsave(., 
+      file = "alt_lpa_mr_res.png",
+      width = 14,
+      height = 8,
+      dpi = 300)
+)
 
 q("no")

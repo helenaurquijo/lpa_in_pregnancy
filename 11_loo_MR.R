@@ -83,15 +83,16 @@ stu_res <-
   bind_rows() %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
-    b = -b * 10,
-    se = se * 10,
+    # to reflect the effect of lowering Lp(a)
+    b = -b
   ) %>%
   mutate(
-    # Conditionally calculate OR, UCI, and LCI for binary outcomes
-    OR = if_else(cat == "bin", exp(b), NA_real_),
-    UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
-    LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    b_scaled = b * 120,
+    se_scaled = se * 120,
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
     FDR = p.adjust(pval, method = "fdr")
   )
 
@@ -116,7 +117,17 @@ loo_args <- expand_grid(
 ## Run leave-one-out meta-analysis
 loo_res <- pmap(loo_args, run_loo) %>%
   bind_rows %>%
-  left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome")
+  left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
+  rename(b = estimate) %>%
+  mutate(
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    b_scaled = b * 120,
+    se_scaled = se * 120,
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
+    FDR = p.adjust(pval, method = "fdr")
+  )
 
 fwrite(
   loo_res,
@@ -141,7 +152,6 @@ main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) 
 
 ## Merge data for plotting
 to_plot <- loo_res %>%
-  rename(b = estimate) %>%
   bind_rows(main_res) %>%
   rename(removing = study)
 
@@ -150,11 +160,13 @@ colours <- c('#88CCEE', '#44AA99', '#117733', '#332288', '#DDCC77', '#CC6677', '
 names(colours) <- arrange(to_plot, removing) %>% pull(removing) %>% unique
 
 ## Plot and save
-plot_mr_special(to_plot, "removing") %>%
-  ggsave(., 
-    file = "loo_lpa_mr_res.png",
-    width = 11,
-    height = 11,
-    dpi = 300)
+suppressWarnings(
+  plot_mr_special(to_plot, "removing", scaled = TRUE) %>%
+    ggsave(., 
+      file = "loo_lpa_mr_res.png",
+      width = 11,
+      height = 11,
+      dpi = 300)
+)
 
 q("no")

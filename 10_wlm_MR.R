@@ -231,15 +231,16 @@ dim(wlm_res)
 final_res <- wlm_res %>%
   left_join(out_info, by = "outcome") %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
-    b = -b * 10,
-    se = se * 10,
+    # to reflect the effect of lowering Lp(a)
+    b = -b
   ) %>%
   mutate(
-    # Conditionally calculate OR, UCI, and LCI for binary outcomes
-    OR = if_else(cat == "bin", exp(b), NA_real_),
-    UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
-    LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    b_scaled = b * 120,
+    se_scaled = se * 120,
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
     FDR = p.adjust(pval, method = "fdr")
   )
 
@@ -266,12 +267,14 @@ to_plot <- filter(final_res, adjustment %in% duos) %>%
 colours <- c('#8C103D', '#D81B60')
 names(colours) <- unique(to_plot$adjustment)
 
-plot_mr_special(to_plot, "adjustment") %>%
-  ggsave(
-    filename = "wlm_lpa_mr_res_duos.png",
-    width = 12,
-    height = 11,
-    dpi = 300)
+suppressWarnings(
+  plot_mr_special(to_plot, "adjustment", scaled = TRUE) %>%
+    ggsave(
+      filename = "wlm_lpa_mr_res_duos.png",
+      width = 12,
+      height = 11,
+      dpi = 300)
+)
 
 # TRIO estimates
 trios <- c(
@@ -291,11 +294,13 @@ colours <- c(
 
 names(colours) <- unique(to_plot$adjustment)
 
-plot_mr_special(to_plot, "adjustment") %>%
-  ggsave(
-    filename = "wlm_lpa_mr_res_trios.png",
-    width = 12,
-    height = 15,
-    dpi = 300)
+suppressWarnings(
+  plot_mr_special(to_plot, "adjustment", scaled = TRUE) %>%
+    ggsave(
+      filename = "wlm_lpa_mr_res_trios.png",
+      width = 12,
+      height = 15,
+      dpi = 300)
+)
 
 q("no")

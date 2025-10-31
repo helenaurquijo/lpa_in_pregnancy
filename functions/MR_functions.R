@@ -314,6 +314,9 @@ run_mr <- function(stu, out, gene, dat) {
   F_stat <- mean(df$F)
   print(paste("Mean F-stat:", round(F_stat, 2)))
 
+  # Calculate total variance explained (r2) per analysis
+  r2 <- sum(df$info.exposure)
+
   ## Return null object if no SNPs selected
   if (nrow(df) == 0) {	
     res2 <- NULL
@@ -349,7 +352,8 @@ run_mr <- function(stu, out, gene, dat) {
         het_Q =    res$Heter.Stat[1],
         het_pval = res$Heter.Stat[2],
         method =   "Generalised IVW",
-        F =        F_stat
+        F =        F_stat,
+        r2 =      r2
       )
       print("gIVW successful")
       ### Run Wald ratio (1 SNP) or standard IVW (> 1 SNP) if LD matrix could not be obtained or harmonised
@@ -432,4 +436,20 @@ run_loo <- function(gene, out) {
   return(study.loo_res2)
 
   }
+}
+
+################################################################################
+# Function to calculate OR and confidence intervals for binary outcomes
+calculate_or_ci <- function(dat) {
+  dat %>%
+    mutate(
+      # Calculate OR, UCI, and LCI for binary outcomes (1 unit change)
+      OR = if_else(cat == "bin", exp(b), NA_real_),
+      UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
+      LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
+      # Calculate OR, UCI, and LCI for binary outcomes (scaled change)
+      OR_scaled = if_else(cat == "bin", exp(b_scaled), NA_real_),
+      UCI_scaled = if_else(cat == "bin", exp(b_scaled + 1.96 * se_scaled), NA_real_),
+      LCI_scaled = if_else(cat == "bin", exp(b_scaled - 1.96 * se_scaled), NA_real_)
+    )
 }

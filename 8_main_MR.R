@@ -101,15 +101,16 @@ res <-
   bind_rows() %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
-    b = -b * 10,
-    se = se * 10,
+    # to reflect the effect of lowering Lp(a)
+    b = -b
   ) %>%
   mutate(
-    # Conditionally calculate OR, UCI, and LCI for binary outcomes
-    OR = if_else(cat == "bin", exp(b), NA_real_),
-    UCI = if_else(cat == "bin", exp(b + 1.96 * se), NA_real_),
-    LCI = if_else(cat == "bin", exp(b - 1.96 * se), NA_real_),
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    b_scaled = b * 120,
+    se_scaled = se * 120,
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
     FDR = p.adjust(pval, method = "fdr")
   )
 
@@ -130,11 +131,22 @@ source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
 
 ## Plot and save
 
-plot_mr(res) %>%
-  ggsave(., 
-    file = "main_mr_res.png",
-    width = 10,
-    height = 8,
-    dpi = 300)
+suppressWarnings(
+  plot_mr(res, scaled = TRUE) %>%
+    ggsave(., 
+      file = "main_mr_res_210nmol.png",
+      width = 10,
+      height = 8,
+      dpi = 300)
+)
+
+suppressWarnings(
+  plot_mr(res, scaled = FALSE) %>%
+    ggsave(., 
+      file = "main_mr_res_1nmol.png",
+      width = 10,
+      height = 8,
+      dpi = 300)
+)
 
 q("no")
