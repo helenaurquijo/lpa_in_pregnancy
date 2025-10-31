@@ -21,20 +21,24 @@ module load languages/R/4.3.3
 ## Run 8_main_MR.R
 #  Runs main MR analysis - lp(a) x 21 APPOs
 echo "Running 8_main_MR.R..."
-R CMD BATCH ${projectdir}/scripts/8_main_MR.R ${projectdir}/logs/8_main_MR.Rout
+R CMD BATCH ${projectdir}/scripts/step_2_run_mr/8_main_MR.R \
+     ${projectdir}/logs/8_main_MR.Rout
 
 ## Run 9_alt_lpa_MR.R
 #  Runs MR with alternative exposure datasets for lp(a) on the same outcomes
 echo "Running 9_alt_lpa_MR.R..."
-R CMD BATCH ${projectdir}/scripts/9_alt_lpa_MR.R ${projectdir}/logs/9_alt_lpa_MR.Rout
+R CMD BATCH ${projectdir}/scripts/step_2_run_mr/9_alt_lpa_MR.R \
+    ${projectdir}/logs/9_alt_lpa_MR.Rout
 
 ## Run 10_wlm_MR.R
 #  Runs weighted linear model MR analysis
 echo "Running 10_wlm_MR.R..."
-R CMD BATCH ${projectdir}/scripts/10_wlm_MR.R ${projectdir}/logs/10_wlm_MR.Rout
+R CMD BATCH ${projectdir}/scripts/step_2_run_mr/10_wlm_MR.R \
+    ${projectdir}/logs/10_wlm_MR.Rout
 
 ## Run 11_loo_MR.R
 #  Runs leave-one-out MR analysis for sensitivity testing
 echo "Running 11_loo_MR.R..."
-R CMD BATCH ${projectdir}/scripts/11_loo_MR.R ${projectdir}/logs/11_loo_MR.Rout
+R CMD BATCH ${projectdir}/scripts/step_2_run_mr/11_loo_MR.R \
+    ${projectdir}/logs/11_loo_MR.Rout
 

@@ -18,12 +18,14 @@ source scripts/config.env
 
 module load languages/R/4.3.3
 
-## Run 12_sample_overlap.R
+## Run 12_run_mrlap.R
 #  Analyzes sample overlap between exposure and outcome datasets
-echo "Running 12_sample_overlap.R..."
-R CMD BATCH ${projectdir}/scripts/12_sample_overlap.R ${projectdir}/logs/12_sample_overlap.Rout
+echo "Running 12_run_mrlap.R..."
+R CMD BATCH ${projectdir}/scripts/step_2_other_sens/12_run_mrlap.R \
+    ${projectdir}/logs/12_run_mrlap.Rout
 
 ## Run 13_coloc.R
 #  Performs colocalization analysis
 echo "Running 13_coloc.R..."
-R CMD BATCH ${projectdir}/scripts/13_coloc.R ${projectdir}/logs/13_coloc.Rout
+R CMD BATCH ${projectdir}/scripts/step_2_other_sens/13_coloc.R \
+    ${projectdir}/logs/13_coloc.Rout
