@@ -114,7 +114,7 @@ lof_dataset <- dataset %>%
   inner_join(genotypes, by = "eid")
 
 print(dim(lof_dataset))
-# [1] 175485     69
+# [1] 175485     71
 
 ## Create lof_homozygous variable
 lof_dataset <- lof_dataset %>%
@@ -179,6 +179,50 @@ print(variant_counts)
 write.csv(variant_counts, file = "lof_variant_counts.csv", row.names = FALSE)
 system('dx upload lof_variant_counts.csv --path results/lof/', intern = TRUE)
 
+## Compare case numbers: lof homozygotes vs everyone else
+outcome_list <- c(
+  "any_event", 
+  "venous_event", 
+  "atheros_event",
+  "cad_event",
+  out_info$outcome[out_info$cat == "bin"]
+  )
+
+count_list <- list()
+
+## Loop through each outcome
+for (outcome in outcome_list) {
+
+  if (outcome %in% colnames(lof_dataset)) {
+    subset_df <- lof_dataset[lof_dataset[[outcome]] == 1, ]
+    # Count cases per quintile
+    counts <- table(factor(subset_df$lof_hom, levels = c(0, 1)))
+  } else {
+    subset_df <- data.frame()
+    quintile_counts <- rep(NA, 5)
+  }
+
+  # Create a df row
+  count_row <- data.frame(
+    outcome = outcome,
+    lof_hom = counts[1],
+    lof_het_wt = counts[2]
+  )
+  
+  # Append to count list
+  count_list[[outcome]] <- count_row
+}
+
+## Combine all rows into a single data frame
+count_df <- do.call(rbind, count_list)
+
+## View the counts
+print(count_df)
+
+## Save counts to a file
+readr::write_tsv(count_df, "event_counts_by_lof_geno.tsv")
+system('dx upload event_counts_by_lof_geno.tsv --path results/lof/', intern = TRUE)
+
 ## Look at lpa levels by variant - violin plot per variant - comparing WT/HET/HOM
 
 ## Create individual plots for each variant
@@ -237,8 +281,8 @@ args <- dplyr::select(out_info, outcome, cat)
 
 ## Add the composite outcomes to the args dataframe
 composite_outcomes <- data.frame(
-  outcome = c("any_event", "venous_event", "atheros_event"),
-  cat = rep("bin", 3)
+  outcome = c("any_event", "venous_event", "atheros_event", "cad_event"),
+  cat = rep("bin", 4)
 )
 args <- bind_rows(args, composite_outcomes) %>%
   # Only keep outcomes that exist in dataset
@@ -270,13 +314,13 @@ to_plot <- results %>%
       outcome == "any_event" ~ "Any thrombotic event",
       outcome == "venous_event" ~ "Venous thrombotic event",
       #outcome == "atheros_event" ~ "Atherosclerotic thrombotic event",
+      outcome == "cad_event" ~ "Coronary artery disease",
       TRUE ~ out_info$outcome_full[match(outcome, out_info$outcome)]
     ),
     cat = case_when(
-      outcome %in% c("any_event", "venous_event", "atheros_event") ~ "bin",
+      !outcome %in% out_info$outcome ~ "bin",
       TRUE ~ out_info$cat[match(outcome, out_info$outcome)]
-    ),
-    b = -b # reverse direction for comparability with rest of study
+    )
   ) %>%
   filter(!is.na(outcome_full)) %>%
   # remove extreme estimates for plotting purposes
@@ -323,14 +367,16 @@ suppressWarnings(
 
 png("lpa_lof_x_appo.png", width = 14, height = 12, units = "in", res = 300)  
 
-cowplot::plot_grid(
-  bin, cont, 
-  ncol = 1, 
-  rel_heights = c(6, 1),
-  align = "v",
-  labels = NULL
-) %>%
-  cowplot::plot_grid(., ncol = 1, rel_heights = c(0.1, 1))
+suppressWarnings(
+  cowplot::plot_grid(
+    bin, cont, 
+    ncol = 1, 
+    rel_heights = c(6, 1),
+    align = "v",
+    labels = NULL
+  ) %>%
+    cowplot::plot_grid(., ncol = 1, rel_heights = c(0.1, 1))
+)
 
 dev.off()
 

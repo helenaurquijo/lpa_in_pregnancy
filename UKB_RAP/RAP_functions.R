@@ -49,7 +49,7 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
   # Determine if score_var is binary
   is_binary_exposure <- all(df[[score_var]] %in% c(0, 1, NA), na.rm = TRUE)
   
-  cat(paste("Analyzing:", outcome, "| Type:", cat, 
+  cat(paste("Analysing:", outcome, "| Type:", cat, 
             "| Exposure type:", ifelse(is_binary_exposure, "binary", "continuous"), "\n"))
   
   # Check if outcome exists in dataframe
@@ -318,9 +318,9 @@ assoc_test <- function(outcome, cat, df, score_var, quint_var = NULL) {
     # Combine all results into a single data frame
     combined_results <- do.call(rbind, results_list)
     
-    # Verify and report the number of quintiles analyzed
+    # Verify and report the number of quintiles analysed
     quintiles_found <- unique(combined_results$quintile)
-    cat(sprintf("\n  Final results for %s: Analyzed %d quintiles: %s\n", 
+    cat(sprintf("\n  Final results for %s: Analysed %d quintiles: %s\n", 
                outcome, length(quintiles_found), 
                paste(sort(quintiles_found), collapse=", ")))
     
