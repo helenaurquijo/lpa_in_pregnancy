@@ -44,16 +44,29 @@ scatter_plot <- function(dat){
 ################################################################################
 # Function to create and save forest plots for MR results
 
-plot_mr <- function(dat){
+plot_mr <- function(dat, scaled = FALSE){
+
+  # Set estimate and se column names and x-axis labels based on scaled parameter
+  estimate_col <- if (scaled) "b_scaled" else "b"
+  se_col <- if (scaled) "se_scaled" else "se"
+  
+  if (scaled) {
+    xlab_cont <- "Mean different in trait (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+  } else {
+    xlab_cont <- "Mean different in trait (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+  }
 
   cont <- dat %>%
     filter(cat == "cont") %>%
     forestplot(
       df = .,
       name = outcome_full,
-      estimate = b,
+      estimate = !!sym(estimate_col),
+      se = !!sym(se_col),
       logodds = FALSE,
-      xlab = "Mean different in trait (95% CI) per 10 nmol/L decrease in lipoprotein(a)",
+      xlab = xlab_cont,
       pvalue = FDR
     ) +
     theme(
@@ -67,9 +80,10 @@ plot_mr <- function(dat){
     forestplot(
       df = .,
       name = outcome_full,
-      estimate = b,
+      estimate = !!sym(estimate_col),
+      se = !!sym(se_col),
       logodds =  TRUE,
-      xlab = "Odds ratio for APPO risk (95% CI) per 10 nmol/L decrease in lipoprotein(a)",
+      xlab = xlab_bin,
       pvalue = FDR
     ) +
     theme(
@@ -85,7 +99,19 @@ plot_mr <- function(dat){
 ################################################################################
 # Function to create and save forest plots for MR results with different labels
 
-plot_mr_special <- function(dat, adjustment){
+plot_mr_special <- function(dat, adjustment, scaled = FALSE){
+
+  # Set estimate and se column names and x-axis labels based on scaled parameter
+  estimate_col <- if (scaled) "b_scaled" else "b"
+  se_col <- if (scaled) "se_scaled" else "se"
+  
+  if (scaled) {
+    xlab_cont <- "Mean different in trait (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+  } else {
+    xlab_cont <- "Mean different in trait (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+  }
 
   my_scale <- colours[1:length(unique(dat[[adjustment]]))]
   names(my_scale) <- unique(dat[[adjustment]])
@@ -96,9 +122,10 @@ plot_mr_special <- function(dat, adjustment){
       df = .,
       name = outcome_full,
       colour = .data[[adjustment]],
-      estimate = b,
+      estimate = !!sym(estimate_col),
+      se = !!sym(se_col),
       logodds = FALSE,
-      xlab = "Mean different in trait (95% CI) from decrease in lipoprotein(a)",
+      xlab = xlab_cont,
       pvalue = FDR
     ) +
     theme(
@@ -113,10 +140,11 @@ plot_mr_special <- function(dat, adjustment){
     forestplot(
       df = .,
       name = outcome_full,
-      estimate = b,
+      estimate = !!sym(estimate_col),
+      se = !!sym(se_col),
       colour = .data[[adjustment]],
       logodds =  TRUE,
-      xlab = "Odds ratio for APPO risk (95% CI) from decrease in lipoprotein(a)",
+      xlab = xlab_bin,
       pvalue = FDR
     ) +
     theme(
