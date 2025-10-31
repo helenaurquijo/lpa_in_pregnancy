@@ -80,16 +80,18 @@ print(c("Dat file", dim(dat)))
 
 res <- 
   run_mr("iv_check", "CAD", "Lp(a)", dat) %>%
+  mutate(cat = "bin") %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
-    b = -b * 10,
-    se = se * 10,
+    # to reflect the effect of lowering Lp(a)
+    b = -b
   ) %>%
   mutate(
-    # Conditionally calculate OR, UCI, and LCI for binary outcomes
-    OR =  exp(b),
-    UCI =  exp(b + 1.96 * se),
-    LCI =  exp(b - 1.96 * se),
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    b_scaled = b * 210,
+    se_scaled = se * 210,
+  ) %>%
+  calculate_or_ci() %>%
+  mutate(
     FDR = p.adjust(pval, method = "fdr")
   )
 
@@ -103,5 +105,38 @@ fwrite(
   )
 
 print(res)
+
+################################################################################
+# Plot, comparing to the main analysis results
+
+source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
+
+res1 <- res %>% 
+  mutate(
+    outcome_full = "Coronary artery disease",
+    cat = "bin"
+  )
+
+main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt"))
+
+to_plot <- bind_rows(res1, main_res)
+
+suppressWarnings(
+  plot_mr(to_plot, scaled = TRUE) %>%
+    ggsave(., 
+      file = "pos_ctrl_mr_res_210nmol.png",
+      width = 10,
+      height = 8,
+      dpi = 300)
+)
+
+suppressWarnings(
+  plot_mr(to_plot, scaled = FALSE) %>%
+    ggsave(., 
+      file = "pos_ctrl_mr_res_1nmol.png",
+      width = 10,
+      height = 8,
+      dpi = 300)
+)
 
 q("no")
