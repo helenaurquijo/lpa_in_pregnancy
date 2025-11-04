@@ -5,6 +5,8 @@
 ##
 # This script runs MR using MRlap to adjust for sample overlap between the
 # exposure dataset (entirely UKB) and the outcome datasets (some partly UKB).
+# TO DO: think of way to make this more efficient as it repeats the LDSC for
+# LP(a) every time, script is requiring almost 50GB of RAM to run.
 ##
 
 rm(list = ls())
@@ -251,8 +253,15 @@ formatted_res <- res %>%
   # Add any additional formatting here if needed
   mutate(
     # Convert effects to reflect lowering Lp(a)
-    obs_b = -observed_effect,
-    corrected_b = -corrected_effect
+    obs_b = -obs_b,
+    corrected_b = -corrected_b
+  ) %>%
+  mutate(
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
+    obs_b_scaled = obs_b * 120,
+    corrected_b_scaled = corrected_b * 120,
+    obs_se_scaled = obs_se * 120,
+    corrected_se_scaled = corrected_se * 120
   )
 
 ## Save results
