@@ -9,19 +9,23 @@
 
 print(Sys.time())
 
+## Initialise renv
+source("renv/activate.R")
+
 library(data.table)
 library(dplyr)
 library(readxl)
 library(TwoSampleMR)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 
 ## Get outcome info
 out_info <- read_excel(paste0(projectdir, "/scripts/info.xlsx"))
 
-## Set up
+################################################################################
+# Set up
 setwd(paste0(projectdir, "/data/outcomes/raw"))
 
 rsids <- fread(paste0(projectdir, "/scripts/rsids.txt"), header = FALSE)

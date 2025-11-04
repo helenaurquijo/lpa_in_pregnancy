@@ -18,7 +18,9 @@ echo "Running script: $(basename $0)"
 
 module add languages/R/4.3.3
 
-source scripts/config.env
+source config.env
+
+cd $projectdir
 
 tags=${projectdir}/data/exposures/instruments/proxies_rsid_main_lpa.txt
 ivs=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt

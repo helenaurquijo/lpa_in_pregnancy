@@ -18,7 +18,9 @@ echo "Running script: $(basename $0)"
 
 module add languages/R/4.3.3
 
-source scripts/config.env
+source config.env
+
+cd $projectdir
 
 snps=${projectdir}/data/exposures/full_sumstats/full_rsids.txt
 

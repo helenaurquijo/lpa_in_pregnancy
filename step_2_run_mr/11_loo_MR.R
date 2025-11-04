@@ -7,7 +7,10 @@
 # MR estimates and meta-analyse them leaving out one study at a time.
 ##
 
-rm(list = ls())
+print(Sys.time())
+
+## Initialise renv
+source("renv/activate.R")
 
 ## Load packages
 library(TwoSampleMR)
@@ -22,7 +25,7 @@ library(metafor)
 library(readxl)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 
 ## Get functions

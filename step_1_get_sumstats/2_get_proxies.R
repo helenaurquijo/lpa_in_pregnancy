@@ -15,6 +15,9 @@
 
 print(Sys.time())
 
+## Initialise renv
+source("renv/activate.R")
+
 library(data.table)
 library(dplyr)
 library(readxl)
@@ -22,7 +25,7 @@ library(TwoSampleMR)
 library(MRutils)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 
 proxy_cache <- paste0(projectdir, "/data/exposures/proxy_cache_EUR/")

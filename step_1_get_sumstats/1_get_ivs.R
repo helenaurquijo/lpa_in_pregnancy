@@ -13,6 +13,9 @@
 
 print(Sys.time())
 
+## Initialise renv
+source("renv/activate.R")
+
 library(biomaRt)
 library(data.table)
 library(dplyr)
@@ -22,10 +25,11 @@ library(vroom)
 library(TwoSampleMR)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 
-## Set up
+############################################################################
+# Set up
 setwd(paste0(projectdir, "/data/exposures/raw/"))
 
 ## Get gene window for LPA

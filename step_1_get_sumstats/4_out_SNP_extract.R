@@ -9,8 +9,15 @@
 
 
 ## Set up
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 mrpregdir <- Sys.getenv("mrpregdir")
+projectdir <- Sys.getenv("projectdir")
+
+## Initialise renv
+source("renv/activate.R")
+
+# Set working directory
+setwd(projectdir)
 
 # Load modules
 library(dplyr)

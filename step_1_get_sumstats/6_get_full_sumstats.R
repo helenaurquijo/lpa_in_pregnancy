@@ -14,6 +14,9 @@
 
 print(Sys.time())
 
+## Initialise renv
+source("renv/activate.R")
+
 library(biomaRt)
 library(data.table)
 library(readxl)
@@ -22,11 +25,13 @@ library(Rsamtools)
 library(dplyr)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 
 ################################################################################
 # Get gene window for LPA
+
+setwd(paste0(projectdir, "/data/exposures/full_sumstats"))
 
 mart <- useEnsembl(
   biomart = "genes",
@@ -48,8 +53,6 @@ lpa_coords <- getBM(
 #    - Lipoprotein_A.imp.gz
 #    - Lipoprotein_A.imp.gz.tbi
 #  and saved in data/exposures/full_sumstats
-
-setwd(paste0(projectdir, "/data/exposures/full_sumstats"))
 
 ## Query LPA region
 file <- TabixFile("Lipoprotein_A.imp.gz")

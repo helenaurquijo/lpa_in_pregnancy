@@ -14,7 +14,7 @@ set -e
 echo "Running script: $(basename $0)"
 echo "Script run at: $(date '+%Y-%m-%d %H:%M:%S')"
 
-source scripts/config.env
+source config.env
 
 module load languages/R/4.3.3
 

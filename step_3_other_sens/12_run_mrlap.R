@@ -9,7 +9,10 @@
 # LP(a) every time, script is requiring almost 50GB of RAM to run.
 ##
 
-rm(list = ls())
+print(Sys.time())
+
+## Initialise renv
+source("renv/activate.R")
 
 ## Load packages
 library(TwoSampleMR)
@@ -25,7 +28,7 @@ library(colorspace)
 library(MRlap)
 
 ## Load env and paths
-readRenviron("scripts/config.env")
+readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
 mrpregdir <- Sys.getenv("mrpregdir")
 
@@ -48,10 +51,10 @@ out_info <- read_excel(paste0(projectdir,"/scripts/info.xlsx"), sheet = "out")
 # Downloaded from https://utexas.app.box.com/s/vkd36n197m8klbaio3yzoxsee6sxo11v
 
 ## Unzip folder - run only once
-# system(
-#   paste0("unzip ", projectdir, "/data/for_mrlap/eur_w_ld_chr.zip ",
-#   "-d ", projectdir, "/data/for_mrlap/")
-#   )
+system(
+  paste0("unzip ", projectdir, "/data/for_mrlap/eur_w_ld_chr.zip ",
+  "-d ", projectdir, "/data/for_mrlap/")
+  )
 
 ################################################################################
 # Load MR-PREG liftover output
