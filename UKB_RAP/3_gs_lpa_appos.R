@@ -108,10 +108,6 @@ table(gs_dataset$gs_quint)
 dim(gs_dataset)
 # [1] 175485     67
 
-## Save dataset with GS
-readr::write_tsv(gs_dataset, "lpa_appos_dataset_with_pgs.tsv")
-system('dx upload lpa_appos_dataset_with_pgs.tsv --path data/UKB_RAP/', intern = TRUE)
-
 ## Save GS distribution plot
 system('dx upload lpa_gs_distribution.png --path results/genetic_score/', intern = TRUE)
 
@@ -268,6 +264,7 @@ dev.off()
 system('dx upload lpa_levels_hist_by_gs_quintile.png --path results/genetic_score/', intern = TRUE)
 
 ## Compare number of individuals out of reportable range by GS quintile
+# First calculate reportable counts
 reportable_counts <- select(gs_dataset, gs_quint, lpa_mes, lpa_report) %>%
   mutate(
     reportable = case_when(
@@ -281,10 +278,41 @@ reportable_counts <- select(gs_dataset, gs_quint, lpa_mes, lpa_report) %>%
   summarise(n = n(), .groups = "drop") %>%
   tidyr::pivot_wider(names_from = reportable, values_from = n, values_fill = 0)
 
-print(reportable_counts)
+# Calculate summary statistics for gs and lpa_mes by quintile
+gs_lpa_summary <- gs_dataset %>%
+  group_by(gs_quint) %>%
+  summarise(
+    # GS statistics
+    gs_median = median(gs, na.rm = TRUE),
+    gs_q25 = quantile(gs, 0.25, na.rm = TRUE),
+    gs_q75 = quantile(gs, 0.75, na.rm = TRUE),
+    gs_min = min(gs, na.rm = TRUE),
+    gs_max = max(gs, na.rm = TRUE),
+    # Lp(a) statistics
+    lpa_median = median(lpa_mes, na.rm = TRUE),
+    lpa_q25 = quantile(lpa_mes, 0.25, na.rm = TRUE),
+    lpa_q75 = quantile(lpa_mes, 0.75, na.rm = TRUE),
+    lpa_min = min(lpa_mes, na.rm = TRUE),
+    lpa_max = max(lpa_mes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Create formatted summary columns
+    gs_summary = sprintf("%.2f (%.2f-%.2f) [%.2f-%.2f]", 
+                         gs_median, gs_q25, gs_q75, gs_min, gs_max),
+    lpa_summary = sprintf("%.1f (%.1f;%.1f) [%.1f;%.1f]", 
+                          lpa_median, lpa_q25, lpa_q75, lpa_min, lpa_max)
+  ) %>%
+  select(gs_quint, gs_summary, lpa_summary)
+
+# Combine reportable counts with summary statistics
+quintile_summary <- reportable_counts %>%
+  left_join(gs_lpa_summary, by = "gs_quint")
+
+print(quintile_summary)
 
 # Save reportable counts
-readr::write_tsv(reportable_counts, "lpa_report_by_gs_quintile.tsv")
+readr::write_tsv(quintile_summary, "lpa_report_by_gs_quintile.tsv")
 system('dx upload lpa_report_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
@@ -316,10 +344,14 @@ print(summary_by_quintile)
 
 ## Save summary
 readr::write_tsv(summary_by_quintile, "summary_by_gs_quintile.tsv")
-system('dx upload summary_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
+system('dx upload summary_by_quintile.tsv --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
 # Association testing - overall and quintile-stratified analyses
+
+## Ensure gs_quint is a factor
+gs_dataset <- gs_dataset %>%
+  mutate(gs_quint = as.factor(gs_quint))
 
 ## Create dataframe for function arguments to iterate through
 args <- select(out_info, outcome, cat)
@@ -333,38 +365,16 @@ args <- bind_rows(args, composite_outcomes) %>%
   # Only keep outcomes that exist in dataset
   filter(outcome %in% colnames(gs_dataset))  
 
-## Overall analysis - for comparison
-overall_results <- purrr::pmap_dfr(
+results <- purrr::pmap_dfr(
   args,
-  assoc_test,
-  df = gs_dataset,
-  score_var = "gs",
-  quint_var = NULL 
-)
+  cat_assoc_test,
+  data = gs_dataset,
+  exp = "gs_quint",
+  ref_var = "5"
+) %>% 
 
-## Quintile-stratified analysis
-quintile_results <- purrr::pmap_dfr(
-  args,
-  assoc_test,
-  df = gs_dataset,
-  score_var = "gs",
-  quint_var = "gs_quint"
-)
-
-## Combine results
-combined <- rbind(
-  overall_results %>% mutate(quintile = "overall"),
-  quintile_results
-) %>% mutate(FDR = p.adjust(p_value, method = "fdr"))
-
-## Save results
-readr::write_tsv(combined, "lpa_gs_x_appo.tsv")
-system('dx upload lpa_gs_x_appo.tsv --path results/genetic_score/', intern = TRUE)
-
-################################################################################
-# Plot results
-
-to_plot <- combined %>%
+final_res <- results %>%
+  mutate(FDR = p.adjust(p_value, method = "fdr")) %>%
   left_join(., out_info, by = "outcome") %>%
   mutate(
     outcome_full = case_when(
@@ -377,20 +387,31 @@ to_plot <- combined %>%
     cat = case_when(
       !outcome %in% out_info$outcome ~ "bin",
       TRUE ~ out_info$cat[match(outcome, out_info$outcome)]
-    ),
+    ))
+
+## Save results
+readr::write_tsv(final_res, "lpa_gs_x_appo.tsv")
+system('dx upload lpa_gs_x_appo.tsv --path results/genetic_score/', intern = TRUE)
+
+################################################################################
+# Plot results
+
+to_plot <- final_res %>%
+  left_join(., out_info, by = "outcome") %>%
+  mutate(
     quintile = as.character(quintile),
-    b = -b # reverse direction for comparability with rest of study
   ) %>%
-  filter(!is.na(outcome_full))
+  filter(
+    !is.na(outcome_full),
+    outcome != "cad_event"
+  )
 
 ## Define colours - required for plot function to run
 colours <- c(
-  "overall" = '#000000ff',
-  "1" = '#0016deff',
-  "2" = '#77abffff',
-  "3" = '#bd9eeaff',
-  "4" = '#ffa6beff',
-  "5" = '#ff5454ff'
+  "Q1" = '#001affff',
+  "Q2" = '#458cfdff',
+  "Q3" = '#aa76f8ff',
+  "Q4" = '#ff4e5fff',
 )
 
 ## Plot 
@@ -411,3 +432,5 @@ dev.off()
 ## Upload plots
 system('dx upload lpa_gs_x_appo.png --path results/genetic_score/', intern = TRUE)
 system('dx upload lpa_gs_x_appo_no_thrombotic.png --path results/genetic_score/', intern = TRUE)
+
+q("no")

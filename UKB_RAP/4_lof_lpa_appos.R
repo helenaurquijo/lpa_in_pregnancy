@@ -130,10 +130,6 @@ table(lof_dataset$lof_hom)
 #      0      1 
 # 175168    317 
 
-## Save updated dataset
-write_tsv(lof_dataset, "lpa_appos_dataset_with_lof.tsv")
-system('dx upload lpa_appos_dataset_with_lof.tsv --path data/UKB_RAP/', intern = TRUE)
-
 ################################################################################
 # Descriptive stats and plots
 
@@ -205,8 +201,8 @@ for (outcome in outcome_list) {
   # Create a df row
   count_row <- data.frame(
     outcome = outcome,
-    lof_hom = counts[1],
-    lof_het_wt = counts[2]
+    lof_hom = counts[2],
+    lof_het_wt = counts[1]
   )
   
   # Append to count list
@@ -293,21 +289,11 @@ results <- purrr::pmap_dfr(
   args,
   assoc_test,
   df = lof_dataset,
-  score_var = "lof_hom",
-  quint_var = NULL # No quintiles for this analysis
-) %>% 
-  dplyr::select(-quintile) %>%
-  mutate(FDR = p.adjust(p_value, method = "fdr"))
-
-## Save results
-readr::write_tsv(results, "lof_hom_x_appos.tsv")
-system('dx upload lof_hom_x_appos.tsv --path results/lof/', intern = TRUE)
-
-###################################################################################
-# Plot results
-
-## Format results
-to_plot <- results %>%
+  exp = "lof_hom"
+  ) 
+  
+final_results <- results %>% 
+  mutate(FDR = p.adjust(p_value, method = "fdr")) %>%
   left_join(., out_info, by = "outcome") %>%
   mutate(
     outcome_full = case_when(
@@ -316,7 +302,19 @@ to_plot <- results %>%
       #outcome == "atheros_event" ~ "Atherosclerotic thrombotic event",
       outcome == "cad_event" ~ "Coronary artery disease",
       TRUE ~ out_info$outcome_full[match(outcome, out_info$outcome)]
-    ),
+    )
+  ) %>% dplyr::select(-cat)
+
+## Save results
+readr::write_tsv(final_results, "lof_hom_x_appos.tsv")
+system('dx upload lof_hom_x_appos.tsv --path results/lof/', intern = TRUE)
+
+###################################################################################
+# Plot results
+
+## Format results
+to_plot <- final_results %>%
+  mutate(
     cat = case_when(
       !outcome %in% out_info$outcome ~ "bin",
       TRUE ~ out_info$cat[match(outcome, out_info$outcome)]
@@ -325,7 +323,6 @@ to_plot <- results %>%
   filter(!is.na(outcome_full)) %>%
   # remove extreme estimates for plotting purposes
   filter(abs(b) < 10)
-
 
 ## Plot 
 suppressWarnings(
