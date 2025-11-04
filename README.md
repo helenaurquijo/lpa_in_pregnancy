@@ -10,7 +10,7 @@ bash setup_workspace.sh
 ```
 which should look like:
 
-```bash
+```
 .
 |-- data
 |   |-- UKB_RAP
