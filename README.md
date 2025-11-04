@@ -6,7 +6,7 @@ Supporting information and scripts for the study of the effects of the modulatio
 ### 1. Create Directory Structure
 Run the setup script to create the required folder structure:
 ```bash
-bash setup_workspace.sh
+bash step_0_set_up.sh
 ```
 which should look like:
 
