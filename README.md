@@ -103,17 +103,17 @@ The scripts in this folder were run in the [UKB RAP](https://www.ukbiobank.ac.uk
 - `4_lof_lpa_appos.R`: Investigating the association between LPA LoF variants and APPOs. Run on an RStudio Workbench session.
 
 ## Running the Analysis (except UKB-RAP analysis)
-From the scripts folder (i.e. the one corresponding to this repository), execute the analysis steps in order:
+From the main workspace, execute the analysis steps in order:
 ```bash
 # Step 1: Get summary statistics
-sbatch --account={XXXXX} step_1_get_sumstats.sh
+sbatch --account={XXXXX} scripts/step_1_get_sumstats.sh
 
 # Step 2: Run MR analysis
-sbatch --account={XXXXX} step_2_run_mr.sh
+sbatch --account={XXXXX} scripts/step_2_run_mr.sh
 
 # Step 3: Sensitivity analyses
-sbatch --account={XXXXX} step_3_other_sens.sh
+sbatch --account={XXXXX} scripts/step_3_other_sens.sh
 
 # Step 4: IV checks
-sbatch --account={XXXXX} step_4_iv_checks.sh
+sbatch --account={XXXXX} scripts/step_4_iv_checks.sh
 ```
