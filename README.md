@@ -46,7 +46,7 @@ with the **contents of this repository located in the `scripts` folder**.
 ### 2. Set up aliases
 Create a `config.env` file in the scripts directory using the template `config_template.env`. N.B. you must set up access tokens for [OpenGWAS](https://opengwas.io) and [LDLink](https://ldlink.nih.gov/?tab=apiaccess).
 
-## 3. Software dependencies
+### 3. Software dependencies
 This project was run in R (v4.3.3) using an [renv](https://rstudio.github.io/renv/) environment. To install the required packages, open R in the scripts folder and:
 1. Install renv using 
 ```R
@@ -57,7 +57,7 @@ install.packages("renv")
 source("renv/activate.R")
 renv::restore() # this step will take a while
 ```
-## 4. Data required
+### 4. Data required
 Besides access to the MR-PREG meta-analysis and study-specific GWAS full summary statistics, the following datasets have to be downloaded:
 
 - Reference panel of 10K UKB participants (private dataset but easily replaced with 1KG3)
