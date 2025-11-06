@@ -142,7 +142,7 @@ fwrite(
 # Sanity check to ensure estimates are highly correlated
 
 library(ggplot2)
-source(paste0(projectdir,"scripts/functions/plot_functions.R"))
+source(paste0(projectdir,"/scripts/functions/plot_functions.R"))
 
 path <- paste0(projectdir, "/data/exposures/instruments/")
 iv_dat <- fread(paste0(path, "exp_dat_main_lpa.txt"))
