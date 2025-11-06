@@ -20,8 +20,6 @@ module add languages/R/4.3.3
 
 source config.env
 
-cd $projectdir
-
 tags=${projectdir}/data/exposures/instruments/proxies_rsid_main_lpa.txt
 ivs=${projectdir}/data/exposures/instruments/rsids_main_lpa.txt
 mackivs=${projectdir}/data/exposures/instruments/rsids_sens_lpa_mack2017.txt
