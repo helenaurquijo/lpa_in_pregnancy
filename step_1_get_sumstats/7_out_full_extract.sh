@@ -20,8 +20,6 @@ module add languages/R/4.3.3
 
 source config.env
 
-cd $projectdir
-
 snps=${projectdir}/data/exposures/full_sumstats/full_rsids.txt
 
 cat ${snps} | sort | uniq > ${projectdir}/scripts/rsids.txt
