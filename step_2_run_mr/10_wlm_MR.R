@@ -28,6 +28,7 @@ library(colorspace)
 ## Load env and paths
 readRenviron("config.env")
 projectdir <- Sys.getenv("projectdir")
+mrpregdir <- Sys.getenv("mrpregdir")
 
 ## Get functions
 source(paste0(projectdir, "/scripts/functions/MR_functions.R"))

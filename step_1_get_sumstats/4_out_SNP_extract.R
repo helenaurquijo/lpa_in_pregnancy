@@ -33,7 +33,7 @@ out_info <- read.table("./scripts/vars_metanalysis_v5_mum.csv", header=T, sep = 
             select(Outcome:var_GWAS)
 
 # Input data directory
-dat_dir <- paste0(mrpregdir, "/results/GWAS/")
+dat_dir <- paste0(mrpregdir, "/data/output/GWAS/")
 
 
 ##
@@ -171,7 +171,7 @@ extr_wlm_dat <- function(type) {
     print(vars)
   
   # List pathway to files
-    path <- paste0(mrpregdir, "/results/adjusted-wlm")
+    path <- paste0(mrpregdir, "/data/output/adjusted-wlm")
 	print(path)
   
   # List files 

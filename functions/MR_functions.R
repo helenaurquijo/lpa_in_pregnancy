@@ -235,7 +235,7 @@ dat_to_MRInput_me <- function(dat, get_correlations = FALSE, pop = "EUR") {
         try(
           ld <- ld_matrix_local(
             unique(x$SNP),
-            bfile = paste0(Sys.getenv("mrpregdir"), "/results/UKB_10k/ukb_eur_10k"),
+            bfile = paste0(Sys.getenv("mrpregdir"), "/data/output/UKB_10k/ukb_eur_10k"),
             plink_bin = plinkbinr::get_plink_exe()
           )
         )

@@ -63,7 +63,7 @@ system(
 #    Since these include UKB and FinnGen this cover most of the variants needed.
 
 liftover_dat <- fread(
-  paste0(mrpregdir,"/results/liftover/mrpreg_rsids_22m_dbSnp155_hg19_hg38.txt.gz"),
+  paste0(mrpregdir,"/data/output/liftover/mrpreg_rsids_22m_dbSnp155_hg19_hg38.txt.gz"),
   sep = " "
 )
 

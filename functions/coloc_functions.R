@@ -171,7 +171,7 @@ run_assocplot <- function(df) {
   ### With alleles
   ld <- ld_matrix_local(
 	  variants = df$SNP,
-	  bfile = paste0(Sys.getenv("mrpregdir"), "/results/UKB_10k/ukb_eur_10k"),
+	  bfile = paste0(Sys.getenv("mrpregdir"), "/data/output/UKB_10k/ukb_eur_10k"),
 	  plink_bin = plinkbinr::get_plink_exe(),
     with_alleles = T
     )
