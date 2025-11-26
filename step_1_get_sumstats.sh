@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=gets_ivs
-#SBATCH --partition=mrcieu
+#SBATCH --partition=short
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
