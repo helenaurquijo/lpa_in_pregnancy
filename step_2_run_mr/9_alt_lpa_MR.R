@@ -92,12 +92,13 @@ res <-
   pmap(args, ~run_mr(..1, ..2, ..3, dat)) %>%
   bind_rows() %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
+  arrange(match(outcome, out_info$outcome)) %>%
   mutate(
     # to reflect the effect of lowering Lp(a)
     b = -b
   ) %>%
   mutate(
-    # to reflect the effect of lowering Lp(a) by 10nmol/L
+    # to reflect the effect of lowering Lp(a) by 210nmol/L
     # 210nmol/L is approx 97.65mg/dL
     b_scaled = case_when(
       exposure == "LPA, apo(a) isoform-adjusted (mg/dL)" ~ b * 97.65,
@@ -133,10 +134,10 @@ main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) 
   as.data.frame() %>%
   mutate(exposure = "LPA, immunoturbidimetric assay (main)")
 
-to_plot <- bind_rows(main_res, res)
+to_plot <- bind_rows(main_res, res) %>%
+  arrange(match(outcome, out_info$outcome))
 
 ## Plot and save
-
 colours <- qualitative_hcl(3, palette = "Dark 3")
 
 suppressWarnings(

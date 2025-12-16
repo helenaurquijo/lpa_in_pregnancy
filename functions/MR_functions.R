@@ -33,123 +33,127 @@ replace_missing_with_proxies <- function(out, exposure_dat, outcome_dat, proxies
   if (nrow(outcome_specific_data) == nrow(exposure_dat)) {
     print(paste("No proxies needed for", out))
     return(outcome_specific_data)  # Return full outcome dataset if no proxies are needed
-  }
+  } else {
+    
+    # Identify proxies
+    print(paste("Identifying proxies for outcome:", out))
 
-  # Identify proxies
-  print(paste("Identifying proxies for outcome:", out))
+    # Specify all available SNPs
+    all_snps <- expand.grid(
+      SNP = exposure_dat$SNP, outcome = out
+    )
 
-  # Specify all available SNPs
-  all_snps <- expand.grid(
-    SNP = exposure_dat$SNP, outcome = out
-  )
+    # Left join SNP-out data for that outcome, NAs if missing
+    snps_with_availability <- all_snps %>%
+      left_join(outcome_specific_data, by = c("SNP", "outcome")) %>%
+      mutate(missing = ifelse(is.na(effect_allele.outcome), TRUE, FALSE))
 
-  # Left join SNP-out data for that outcome, NAs if missing
-  snps_with_availability <- all_snps %>%
-    left_join(outcome_specific_data, by = c("SNP", "outcome")) %>%
-    mutate(missing = ifelse(is.na(effect_allele.outcome), TRUE, FALSE))
+    # Deduplicated list of all SNPs which need a proxy
+    snps_needing_proxies <- snps_with_availability %>%
+      filter(missing == TRUE) %>%
+      distinct(SNP)
 
-  # Deduplicated list of all SNPs which need a proxy
-  snps_needing_proxies <- snps_with_availability %>%
-    filter(missing == TRUE) %>%
-    distinct(SNP)
+    # Count of proxies needed 
+    print("SNPs missing:")
+    print(table(snps_with_availability$missing))
 
-  # Count of proxies needed 
-  print("SNPs missing:")
-  print(table(snps_with_availability$missing))
+    # Proxies without query SNPs as the proxy
+    proxies_without_query <- filter(proxies, query_rsid != rsid) %>%
+      mutate(SNP = rsid)
 
-  # Proxies without query SNPs as the proxy
-  proxies_without_query <- filter(proxies, query_rsid != rsid) %>%
-    mutate(SNP = rsid)
+    # List of all proxies
+    proxy_snps <- unique(proxies_without_query$rsid)
 
-  # List of all proxies
-  proxy_snps <- unique(proxies_without_query$rsid)
+    # Unfiltered SNP-out data
+    unfiltered_out_data <- outcome_dat %>%
+      filter(outcome == out)
+    
+    print(dim(unfiltered_out_data))
 
-  # Unfiltered SNP-out data
-  unfiltered_out_data <- outcome_dat %>%
-    filter(outcome == out)
-  
-  print(dim(unfiltered_out_data))
-
-  # Stop if no proxies are not present in the outcome dataset at all
-  if (all(!unfiltered_out_data$SNP %in% proxy_snps)) {
-    print("No proxies among SNP-out data")
-    return(outcome_specific_data)
-  } else { # continue if proxies are present in the outcome dataset
-    print(paste0("Searching for proxies for ", nrow(snps_needing_proxies), " SNPs."))
-
-    # Merge proxies with SNPs that need proxies
-    proxies_with_info <- merge(x = snps_needing_proxies, y = proxies_without_query, by.x = "SNP", by.y = "query_rsid", all.x = TRUE)
-
-    # Stop if none of the proxies that are needed are in the outcome dataset
-    if (all(!proxies_with_info$rsid %in% unfiltered_out_data$SNP)) {
-      print("No SNP-outcome associations available for any the proxies that are needed.")
+    # Stop if no proxies are not present in the outcome dataset at all
+    if (all(!unfiltered_out_data$SNP %in% proxy_snps)) {
+      print("No proxies among SNP-out data")
       return(outcome_specific_data)
+    } else { # continue if proxies are present in the outcome dataset
+      print(paste0("Searching for proxies for ", nrow(snps_needing_proxies), " SNPs."))
+
+      # Merge proxies with SNPs that need proxies
+      proxies_with_info <- merge(x = snps_needing_proxies, y = proxies_without_query, by.x = "SNP", by.y = "query_rsid", all.x = TRUE) %>% rename(query_rsid = SNP.y)
+
+      # Stop if none of the proxies that are needed are in the outcome dataset
+      if (all(!proxies_with_info$rsid %in% unfiltered_out_data$SNP)) {
+        print("No SNP-outcome associations available for any the proxies that are needed.")
+        return(outcome_specific_data)
+      }
+
+      # Append outcome data for each proxy SNP
+      proxy_outcome_data <- merge(x = proxies_with_info, y = unfiltered_out_data, by.x = "rsid", by.y = "SNP")
+
+      # Exclude palindromic proxies
+      filtered_proxies <- proxy_outcome_data %>%
+        filter(!(effect_allele.outcome == "A" & other_allele.outcome == "T" |
+                effect_allele.outcome == "T" & other_allele.outcome == "A")) %>%
+        filter(!(effect_allele.outcome == "C" & other_allele.outcome == "G" |
+                effect_allele.outcome == "G" & other_allele.outcome == "C"))
+
+      # Select the proxy SNP in highest LD with the query SNP
+      set.seed(9) # For reproducibility
+      selected_proxies <- filtered_proxies %>%
+        group_by(SNP) %>%
+        drop_na(R2) %>%
+        slice_max(order_by = R2, with_ties = TRUE) %>%
+        slice_sample(n = 1) %>%
+        ungroup()
     }
 
-    # Append outcome data for each proxy SNP
-    proxy_outcome_data <- merge(x = proxies_with_info, y = outcome_specific_data, by.x = "rsid", by.y = "SNP", all.y = TRUE)
+    # Stop searching for proxies if no SNP-outcome data available
+    if ((nrow(snps_needing_proxies) > 0) & (nrow(selected_proxies) == 0)) {
+      print("No proxy-outcome associations available for any SNPs.")
+    } else {
+      # Add column specifying proxy effect allele
+      harmonised_proxies <- selected_proxies
+      harmonised_proxies$effect_allele.proxy <- apply(harmonised_proxies, 1, function(row) {
+        if (row["effect_allele.outcome"] == substr(row["Correlated_Alleles"], 3, 3)) {
+          return(substr(row["Correlated_Alleles"], 1, 1))
+        } else if (row["effect_allele.outcome"] == substr(row["Correlated_Alleles"], 7, 7)) {
+          return(substr(row["Correlated_Alleles"], 5, 5))
+        } else {
+          return("default_value")
+        }
+      })
 
-    # Exclude palindromic proxies
-    filtered_proxies <- proxy_outcome_data %>%
-      filter(!(effect_allele.outcome == "A" & other_allele.outcome == "T" |
-               effect_allele.outcome == "T" & other_allele.outcome == "A")) %>%
-      filter(!(effect_allele.outcome == "C" & other_allele.outcome == "G" |
-               effect_allele.outcome == "G" & other_allele.outcome == "C"))
+      # Same again but for other allele
+      harmonised_proxies$other_allele.proxy <- apply(harmonised_proxies, 1, function(row) {
+        if (row["other_allele.outcome"] == substr(row["Correlated_Alleles"], 3, 3)) {
+          return(substr(row["Correlated_Alleles"], 1, 1))
+        } else if (row["other_allele.outcome"] == substr(row["Correlated_Alleles"], 7, 7)) {
+          return(substr(row["Correlated_Alleles"], 5, 5))
+        } else {
+          return("default_value")
+        }
+      })
 
-    # Select the proxy SNP in highest LD with the query SNP
-    set.seed(9) # For reproducibility
-    selected_proxies <- filtered_proxies %>%
-      group_by(SNP) %>%
-      drop_na() %>%
-      slice_max(R2, with_ties = TRUE) %>%
-      slice_sample(n = 1)
+      # Treat proxy alleles as the outcome alleles
+      final_harmonised_proxies <- harmonised_proxies
+      final_harmonised_proxies$effect_allele.outcome <- final_harmonised_proxies$effect_allele.proxy
+      final_harmonised_proxies$other_allele.outcome <- final_harmonised_proxies$other_allele.proxy
+      final_harmonised_proxies$data_source.outcome <- NA
+      final_harmonised_proxies$proxied <- TRUE
+      final_harmonised_proxies$proxy <- final_harmonised_proxies$rsid
+
+      # Create final dataframe which has replaced missing SNPs with their proxies
+      outcome_dat_cols <- colnames(outcome_dat)
+      final_harmonised_proxies <- final_harmonised_proxies %>% select(all_of(outcome_dat_cols))
+
+      # Return message with number of SNPs which could be proxied
+      print(paste0(nrow(final_harmonised_proxies), " proxies identified."))
+
+      outcome_specific_data <- rbind(outcome_specific_data, final_harmonised_proxies)
+    }
+
+    # Return full outcome dataset with added proxies
+    return(outcome_specific_data)
   }
-
-  # Stop searching for proxies if no SNP-outcome data available
-  if ((nrow(snps_needing_proxies) > 0) & (nrow(selected_proxies) == 0)) {
-    print("No proxy-outcome associations available for any SNPs.")
-  } else {
-    # Add column specifying proxy effect allele
-    harmonised_proxies <- selected_proxies
-    harmonised_proxies$effect_allele.proxy <- apply(harmonised_proxies, 1, function(row) {
-      if (row["effect_allele.outcome"] == substr(row["Correlated_Alleles"], 3, 3)) {
-        return(substr(row["Correlated_Alleles"], 1, 1))
-      } else if (row["effect_allele.outcome"] == substr(row["Correlated_Alleles"], 7, 7)) {
-        return(substr(row["Correlated_Alleles"], 5, 5))
-      } else {
-        return("default_value")
-      }
-    })
-
-    # Same again but for other allele
-    harmonised_proxies$other_allele.proxy <- apply(harmonised_proxies, 1, function(row) {
-      if (row["other_allele.outcome"] == substr(row["Correlated_Alleles"], 3, 3)) {
-        return(substr(row["Correlated_Alleles"], 1, 1))
-      } else if (row["other_allele.outcome"] == substr(row["Correlated_Alleles"], 7, 7)) {
-        return(substr(row["Correlated_Alleles"], 5, 5))
-      } else {
-        return("default_value")
-      }
-    })
-
-    # Treat proxy alleles as the outcome alleles
-    final_harmonised_proxies <- harmonised_proxies
-    final_harmonised_proxies$effect_allele.outcome <- final_harmonised_proxies$effect_allele.proxy
-    final_harmonised_proxies$other_allele.outcome <- final_harmonised_proxies$other_allele.proxy
-    final_harmonised_proxies$data_source.outcome <- NA
-
-    # Create final dataframe which has replaced missing SNPs with their proxies
-    outcome_dat_cols <- colnames(outcome_dat)
-    final_harmonised_proxies <- final_harmonised_proxies %>% select(all_of(outcome_dat_cols))
-
-    # Return message with number of SNPs which could be proxied
-    print(paste0(nrow(final_harmonised_proxies), " proxies identified."))
-
-    outcome_specific_data <- rbind(outcome_specific_data, final_harmonised_proxies)
-  }
-
-  # Return full outcome dataset with added proxies
-  return(outcome_specific_data)
 }
 
 ################################################################################ 
@@ -353,7 +357,7 @@ run_mr <- function(stu, out, gene, dat) {
         het_pval = res$Heter.Stat[2],
         method =   "Generalised IVW",
         F =        F_stat,
-        r2 =      r2
+        r2 =       r2
       )
       print("gIVW successful")
       ### Run Wald ratio (1 SNP) or standard IVW (> 1 SNP) if LD matrix could not be obtained or harmonised
@@ -362,7 +366,8 @@ run_mr <- function(stu, out, gene, dat) {
       #print(df)
       res <- df %>%
         mutate(rsid = SNP, pval = pval.exposure) %>%
-        mr
+        mr(method_list = c("mr_ivw", "mr_wald_ratio"))
+
       res2 <- res %>%
         mutate(
           outcome = out,

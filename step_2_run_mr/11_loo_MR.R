@@ -91,8 +91,8 @@ stu_res <-
   ) %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 210nmol/L
-    b_scaled = b * 120,
-    se_scaled = se * 120,
+    b_scaled = b * 210,
+    se_scaled = se * 210,
   ) %>%
   calculate_or_ci() %>%
   mutate(
@@ -121,11 +121,12 @@ loo_args <- expand_grid(
 loo_res <- pmap(loo_args, run_loo) %>%
   bind_rows %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
+  arrange(match(outcome, out_info$outcome)) %>%
   rename(b = estimate) %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 210nmol/L
-    b_scaled = b * 120,
-    se_scaled = se * 120,
+    b_scaled = b * 210,
+    se_scaled = se * 210,
   ) %>%
   calculate_or_ci() %>%
   mutate(
@@ -156,6 +157,7 @@ main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) 
 ## Merge data for plotting
 to_plot <- loo_res %>%
   bind_rows(main_res) %>%
+  arrange(match(outcome, out_info$outcome)) %>%
   rename(removing = study)
 
 ## Set plot colours  

@@ -53,7 +53,7 @@ exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
   mutate(exposure = "Lp(a)")
 
 print(c("Exp file", dim(exp_dat))) 
-# [1] "Exp file" "29"       "12"
+# [1] "Exp file" "29"       "13"
 
 ## Load outcome file, keep relevant outcomes
 out_dat <- 
@@ -89,7 +89,7 @@ dat <- harmonise_data(
   )
 
 print(c("Dat file", dim(dat)))
-# [1] "Dat file" "245"      "37"
+# [1] "Dat file" "262"      "37"
 
 ################################################################################
 # Run main analysis
@@ -103,14 +103,15 @@ res <-
   pmap(args, ~run_mr(..1, ..2, ..3, dat)) %>%
   bind_rows() %>%
   left_join(out_info %>% select(outcome, outcome_full, cat), by = "outcome") %>%
+  arrange(match(outcome, out_info$outcome)) %>%
   mutate(
     # to reflect the effect of lowering Lp(a)
     b = -b
   ) %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 210nmol/L
-    b_scaled = b * 120,
-    se_scaled = se * 120,
+    b_scaled = b * 210,
+    se_scaled = se * 210,
   ) %>%
   calculate_or_ci() %>%
   mutate(
@@ -133,7 +134,6 @@ fwrite(
 source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
 
 ## Plot and save
-
 suppressWarnings(
   plot_mr(res, scaled = TRUE) %>%
     ggsave(., 

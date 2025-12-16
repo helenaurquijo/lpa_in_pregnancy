@@ -87,16 +87,19 @@ conmal_trio_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_trios.txt.gz")) %
 duo_dat <- rbind(duo_dat, conmal_duo_dat)
 trio_dat <- rbind(trio_dat, conmal_trio_dat)
 
+################################################################################
+# Format data
+
 ## Format outcome data
-format_outdat <- function(df, type) {
+format_outdat <- function(df, ind) {
   dat <- data.frame(df) %>%
   format_data(
     type = "outcome",
     snps = exp_dat$SNP,
     eaf_col = "eaf_mat",
-    beta_col = paste0("beta_", type),
-    se_col = paste0("se_", type),
-    pval_col = paste0("p_", type)
+    beta_col = paste0("beta_", ind),
+    se_col = paste0("se_", ind),
+    pval_col = paste0("p_", ind)
     ) %>%
     filter(outcome %in% out_info$outcome)
 }
@@ -120,7 +123,7 @@ d <- list(
   )
 
 ## Format and name outcome data
-out_dat <- map2(d, t, ~format_outdat(df = .x, type = .y)) 
+out_dat <- map2(d, t, ~format_outdat(df = .x, ind = .y)) 
 names(out_dat) <- m
 
 ## Harmonise data 
@@ -213,7 +216,7 @@ wlm_res <- pmap(args, function(exp, out, adj) {
           bfile = paste0(mrpregdir, "results/UKB_10k/ukb_eur_10k"),
           plink_bin = plinkbinr::get_plink_exe()
         ) %>%
-        mr
+        mr(method_list = c("mr_ivw", "mr_wald_ratio"))
 
       res2 <- res %>%
         mutate(
@@ -234,14 +237,15 @@ dim(wlm_res)
   
 final_res <- wlm_res %>%
   left_join(out_info, by = "outcome") %>%
+  arrange(match(outcome, out_info$outcome)) %>%
   mutate(
     # to reflect the effect of lowering Lp(a)
     b = -b
   ) %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 210nmol/L
-    b_scaled = b * 120,
-    se_scaled = se * 120,
+    b_scaled = b * 210,
+    se_scaled = se * 210,
   ) %>%
   calculate_or_ci() %>%
   mutate(
@@ -277,33 +281,6 @@ suppressWarnings(
       filename = "wlm_lpa_mr_res_duos.png",
       width = 12,
       height = 11,
-      dpi = 300)
-)
-
-# TRIO estimates
-trios <- c(
-  "Paternal (maternal+fetal adjusted)", "Paternal (unadjusted)",
-  "Fetal (maternal+paternal adjusted)", "Fetal (maternal adjusted)",
-  "Fetal (unadjusted)", "Maternal (fetal+paternal adjusted)",
-  "Maternal (fetal adjusted)", "Maternal (unadjusted)"
-  )
-
-to_plot <- filter(final_res, adjustment %in% trios) %>%
-  mutate(adjustment = factor(adjustment,levels = trios))
-
-colours <- c(
-  '#8C103D', '#D81B60', '#FF5B97', '#FE6100',
-  '#FFC107', '#FFE749', '#125D9E', '#1E88E5'
-  )
-
-names(colours) <- unique(to_plot$adjustment)
-
-suppressWarnings(
-  plot_mr_special(to_plot, "adjustment", scaled = TRUE) %>%
-    ggsave(
-      filename = "wlm_lpa_mr_res_trios.png",
-      width = 12,
-      height = 15,
       dpi = 300)
 )
 
