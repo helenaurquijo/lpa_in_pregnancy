@@ -8,19 +8,19 @@ scatter_plot <- function(dat){
   lim <- c(-20, 170)
   
   # Calculate correlation (Pearson)
-  cor_val <- cor(dat$beta.exposure, dat$beta, use = "complete.obs")
+  cor_val <- cor(dat$beta.exposure, dat$beta.outcome, use = "complete.obs")
   cor_label <- paste0("r = ", sprintf("%.2f", cor_val))
   
   # Calculate confidence intervals
   dat$lSE.exposure <- dat$beta.exposure - 1.96 * dat$se.exposure
   dat$uSE.exposure <- dat$beta.exposure + 1.96 * dat$se.exposure
-  dat$lSE.gwas <- dat$beta - 1.96 * dat$se
-  dat$uSE.gwas <- dat$beta + 1.96 * dat$se
+  dat$lSE.outcome <- dat$beta.outcome - 1.96 * dat$se.outcome
+  dat$uSE.outcome <- dat$beta.outcome + 1.96 * dat$se.outcome
   
-  p <- ggplot(dat, aes(x = beta.exposure, y = beta)) +
+  p <- ggplot(dat, aes(x = beta.exposure, y = beta.outcome)) +
     geom_point(color = "#E69F00", alpha = 0.75) +
     geom_errorbar(aes(xmin = lSE.exposure, xmax = uSE.exposure), alpha = 0.25) +
-    geom_errorbar(aes(ymin = lSE.gwas, ymax = uSE.gwas), alpha = 0.25) +
+    geom_errorbar(aes(ymin = lSE.outcome, ymax = uSE.outcome), alpha = 0.25) +
     geom_abline(color = "gray60") +
     geom_hline(yintercept = 0, color = "#FF000033") +
     geom_vline(xintercept = 0, color = "#FF000033")

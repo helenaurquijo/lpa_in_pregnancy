@@ -85,22 +85,19 @@ print(nrow(region_df))
 ################################################################################
 # Merge and format data
 
-## Get rsids
+## Get UKB rsid metadata from chr6 
 ukb_metadata <- Sys.getenv("ukb_metadata")
 ukb_rsids <- fread(
   paste0(
     Sys.getenv("ukb_metadata"),
     "olink_rsid_map_mac5_info03_b0_7_chr6_patched_v2.tsv.gz")
   ) %>% 
-  select(1,4) %>%
+  # select(1,4) %>%
+  # Extract region of interest - GRCh37/hg19 build
+  filter(POS19 >= start & POS19 <= end) %>%
   mutate(
-    # Extract components from 6:63979:C:T:imp:v1 format in first column
-    chr = gsub(":.*", "", .[[1]]),
-    pos = gsub(".*?:(\\d+):.*", "\\1", .[[1]]),
-    ref = gsub(".*?:\\d+:(\\w+):(\\w+):.*", "\\1", .[[1]]),
-    alt = gsub(".*?:\\d+:(\\w+):(\\w+):.*", "\\2", .[[1]]),
-    # Create new format: chr:pos_ref_alt
-    MarkerName = paste0(chr, ":", pos, "_", ref, "_", alt)
+    # Create new format: chr:pos19_ref_alt to match region_df
+    MarkerName = paste0(6, ":", POS19, "_", REF, "_", ALT)
   ) %>% select(MarkerName, rsid)
 
 ## Merge with region data
@@ -144,71 +141,26 @@ fwrite(
 library(ggplot2)
 source(paste0(projectdir,"/scripts/functions/plot_functions.R"))
 
+## Extract main IVs and format as outcome for harmonization
 path <- paste0(projectdir, "/data/exposures/instruments/")
-iv_dat <- fread(paste0(path, "exp_dat_main_lpa.txt"))
+iv_dat <- fread(paste0(path, "exp_dat_main_lpa.txt")) %>%
+  as.data.frame() %>%
+  format_data(., type = "outcome")
 
-comp <- inner_join(formatted, iv_dat, by = "SNP") %>%
-  select(
-    SNP,
-    effect_allele, effect_allele.exposure,
-    other_allele, other_allele.exposure,
-    eaf, MAF = eaf.exposure,
-    beta, beta.exposure,
-    se, se.exposure,
-    pval, pval.exposure
-    ) %>%
+## Harmonise data
+comp <- harmonise_data(
+    exposure_dat = formatted,
+    outcome_dat = iv_dat,
+    action = 2
+  ) %>%
   mutate(
     # ensure no pvals of 0
-    pval = ifelse(pval == 0, .Machine$double.xmin, pval),
+    pval.outcome = ifelse(pval.outcome == 0, .Machine$double.xmin, pval.outcome),
+    pval.exposure = ifelse(pval.exposure == 0, .Machine$double.xmin, pval.exposure),
     # Convert from SD units to nmol/L
     # SD as per UKB showcase https://biobank.ndph.ox.ac.uk/showcase/field.cgi?id=30790
     beta.exposure = beta.exposure * 49.21
-    )
-
-## Check alleles are harmonised
-allele_mismatch <- which(
-  # Effect alleles do not match
-  (comp$effect_allele != comp$effect_allele.exposure | 
-   comp$other_allele != comp$other_allele.exposure) & 
-  # And ensure they are merely flipped
-  (comp$effect_allele == comp$other_allele.exposure | 
-   comp$other_allele == comp$effect_allele.exposure)
-)
-if(length(allele_mismatch) == 0) {
-  print("No allele mismatches found")
-} else {
-  print(paste("Found", length(allele_mismatch), "allele mismatches"))
-}
-
-## Ensure no palindromic SNPs
-palindromic <- which((comp$effect_allele == "A" & comp$other_allele == "T") |
-                     (comp$effect_allele == "T" & comp$other_allele == "A") |
-                     (comp$effect_allele == "C" & comp$other_allele == "G") |
-                     (comp$effect_allele == "G" & comp$other_allele == "C"))
-
-palindromic
-# the only palindromic SNP is harmonised and inferrable
-
-## Flip alleles if needed
-if(length(allele_mismatch) > 0) {
-  # Fix each mismatched row directly
-  for(i in allele_mismatch) {
-    # Swap alleles
-    comp$effect_allele[i] <- comp$effect_allele.exposure[i]
-    comp$other_allele[i] <- comp$other_allele.exposure[i]
-    # Flip the effect size
-    comp$beta[i] <- -comp$beta[i]
-  }
-}
-
-## Check alleles it has worked
-allele_mismatch <- which(comp$effect_allele != comp$effect_allele.exposure | 
-             comp$other_allele != comp$other_allele.exposure)
-if(length(allele_mismatch) == 0) {
-  print("No allele mismatches found")
-} else {
-  print(paste("Found", length(allele_mismatch), "allele mismatches"))
-}
+  )
 
 ## Plot comparison
 png("lpa_gwas_vs_iv.png", 

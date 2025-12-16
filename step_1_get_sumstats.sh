@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=05:00:00
-#SBATCH --mem=4gb
+#SBATCH --mem=5gb
 #SBATCH --profile=task
 
 # Exit immediately if any command fails

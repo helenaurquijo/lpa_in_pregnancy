@@ -178,7 +178,7 @@ exp_dat_mack <- merge(mack_dat, mack_info, by = "SNP", all.x = TRUE) %>%
   format_data(.,
     type = "exposure",
     min_pval = .Machine$double.xmin    
-  ) 
+  ) %>% mutate(id.exposure = "mack2017")
 
 print(head(exp_dat_mack))
 nrow(exp_dat_mack) # [1] 30
@@ -258,7 +258,7 @@ lpa_olink_dat <- merge(lpa_olink, key_p, by = "ID") %>%
     chr_col = "chr",
     pos_col = "pos_hg38",
     min_pval = .Machine$double.xmin    
-  )
+  ) %>% mutate(id.exposure = "olink")
 
 print(head(lpa_olink_dat))
 nrow(lpa_olink_dat) # 3321
