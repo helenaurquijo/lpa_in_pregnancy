@@ -40,7 +40,9 @@ out_info <- read_excel(paste0(projectdir,"/scripts/info.xlsx"), sheet = "out")
 exp_file <- paste0(projectdir,"/data/exposures/full_sumstats/full_sumstats_lpa.txt")
 exp_dat <- fread(exp_file) %>%
   # format for coloc to run well
-  rename(MAF.exposure = eaf.exposure) %>%
+  # MAF was saved as eaf for formatting purposes
+  # Rename it back here so we then know whether MAF needs to be calculated
+  rename(MAF.exposure = eaf.exposure) %>% 
   mutate(
     exposure = "Lp(a)",
     eaf.exposure = NA,

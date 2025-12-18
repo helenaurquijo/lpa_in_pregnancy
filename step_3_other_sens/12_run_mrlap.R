@@ -71,6 +71,8 @@ liftover_dat <- fread(
 # Load exposure data and format
 
 ## Define lp(a) full summary stats path
+#  GWAS of Lp(a) in UKB by Sinnott-Armstrong et al. 2021
+#  Downloaded from https://nih.figshare.com/ndownloader/files/22769978
 lpa_file <- paste0(projectdir,"/data/exposures/full_sumstats/Lipoprotein_A.imp.gz")
 
 # Read in full GWAS summary stats and merge with liftover output
@@ -153,7 +155,6 @@ out_dat_pph <- fread(pph_file) %>%
   data.frame()
 
 # conmal_any - MoBa
-out_file <- paste0(projectdir,"/data/outcomes/full_sumstats/conmal_full_sumstats.txt")
 out_dat_conmal <- fread(Sys.getenv("conmal")) %>%
   rename(
     CHR = chr,
@@ -261,10 +262,10 @@ formatted_res <- res %>%
   ) %>%
   mutate(
     # to reflect the effect of lowering Lp(a) by 210nmol/L
-    obs_b_scaled = obs_b * 120,
-    corrected_b_scaled = corrected_b * 120,
-    obs_se_scaled = obs_se * 120,
-    corrected_se_scaled = corrected_se * 120
+    obs_b_scaled = obs_b * 210,
+    corrected_b_scaled = corrected_b * 210,
+    obs_se_scaled = obs_se * 210,
+    corrected_se_scaled = corrected_se * 210
   )
 
 ## Save results

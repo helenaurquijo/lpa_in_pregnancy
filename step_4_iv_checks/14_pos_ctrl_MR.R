@@ -60,7 +60,7 @@ out_dat <-
   extract_outcome_data(
     snps = exp_dat$SNP,
     outcomes = "ieu-a-7",
-    proxies = 1, 
+    proxies = TRUE, 
     opengwas_jwt = get_opengwas_jwt()
   ) %>% mutate(outcome = "CAD")
 
@@ -95,7 +95,7 @@ res <-
   ) %>%
   calculate_or_ci() %>%
   mutate(
-    FDR = p.adjust(pval, method = "fdr")
+    FDR = NA # set to NA but keep column for consistency
   )
 
 ## Save results
