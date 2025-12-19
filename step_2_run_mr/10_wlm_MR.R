@@ -272,7 +272,7 @@ duos <- c("Maternal (fetal adjusted)", "Maternal (unadjusted)")
 to_plot <- filter(final_res, adjustment %in% duos) %>%
   mutate(adjustment = factor(adjustment,levels = duos))
 
-colours <- c('#8C103D', '#D81B60')
+colours <- c('#1E88E5', '#D81B60')
 names(colours) <- unique(to_plot$adjustment)
 
 suppressWarnings(
