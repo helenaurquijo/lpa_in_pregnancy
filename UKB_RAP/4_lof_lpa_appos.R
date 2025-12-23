@@ -3,7 +3,9 @@
 ################################################################################
 
 ##
-# 
+# This script extracts gneotypic data for loss-of-function (LoF) variants in the
+# LPA gene from the MR-PREG UKB sample, and tests the association of LoF 
+# status (homozygote vs rest of sample) with APPOs.
 ##
 
 # N.B. To run this script, run:
@@ -26,7 +28,7 @@ install.packages("ggplot2", dependencies = NA)
 # Load rest of packages using pacman
 pacman::p_load(
   rlang, dplyr, readr, readxl, stringr, purrr, broom,
-  ggplot2, cowplot
+  ggplot2, cowplot, HardyWeinberg
 )
 
 ## Install ukbrapR and ggforesplot packages from GitHub
@@ -50,6 +52,10 @@ library(biomaRt)
 system('dx download -f data/UKB_RAP/lpa_appos_dataset.tsv', intern = TRUE)
 dataset <- readr::read_tsv("lpa_appos_dataset.tsv")
 
+# snps-stats file for the in-house selection of European individuals
+system('dx download -f data/UKB_RAP/derived/data.chr06.snp-stats', intern = TRUE)
+snp_stats <- readr::read_tsv("data.chr06.snp-stats", comment = "#")
+
 # APPO info
 system('dx download -f scripts/info.xlsx', intern = TRUE)
 out_info <- readxl::read_excel("info.xlsx")
@@ -71,7 +77,6 @@ vars <- c(
    "rs41267811",
    "rs143431368",
    "rs762351463",
-   "rs41267811",
    "rs200099994",
    "rs559580002"
 )
@@ -114,21 +119,101 @@ lof_dataset <- dataset %>%
   inner_join(genotypes, by = "eid")
 
 print(dim(lof_dataset))
-# [1] 175485     71
+# [1] 198854     71
 
 ## Create lof_homozygous variable
+#  1 = homozygous for any LoF variant
+#  0 = not homozygous for any LoF variant (het or WT)
+#  NA = missing genotype for any LoF variant
 lof_dataset <- lof_dataset %>%
   mutate(
-    lof_hom = if_else(
-      rowSums(across(all_of(colnames(genotypes)[-1]), ~ . == 2), na.rm = TRUE) > 0,
-      1,
-      0
+    lof_hom = case_when(
+      rowSums(is.na(across(all_of(colnames(genotypes)[-1])))) > 0 ~ NA_real_,
+      rowSums(across(all_of(colnames(genotypes)[-1]), ~ . == 2), na.rm = TRUE) > 0 ~ 1,
+      TRUE ~ 0
     )
   )
 
-table(lof_dataset$lof_hom)
-#      0      1 
-# 175168    317 
+for (v in colnames(genotypes)[-1]) {
+  print(table(lof_dataset[[v]], useNA = "ifany"))
+}
+
+table(lof_dataset$lof_hom, useNA = "ifany")
+#      0      1   <NA> 
+# 197600    362    892 
+
+# remove individuals with missing genotypes
+lof_dataset <- lof_dataset %>%
+  filter(!is.na(lof_hom))
+
+# total N 197962
+
+################################################################################
+# Additional checks on LoF variants for sanity check
+
+# Check Hardy-Weinberg Equilibrium  and MAF per variant
+# and add results to df for comparison later
+lof_tests <- data.frame(
+  variant = character(),
+  maf_sample = numeric(),
+  maf_overall = numeric(),
+  info = numeric(),
+  stringsAsFactors = FALSE
+)
+
+for (v in colnames(genotypes)[-1]) {
+
+  geno_table <- table(lof_dataset[[v]], useNA = "ifany")
+  
+  # Ensure all genotype categories (0, 1, 2) are present
+  full_geno <- c("0" = 0, "1" = 0, "2" = 0)
+  for (geno in names(geno_table)) {
+    if (geno %in% names(full_geno)) {
+      full_geno[geno] <- geno_table[geno]
+    }
+  }
+  names(full_geno) <- c("AA", "AB", "BB")
+
+  # MAF and make it numeric with no scientific notation
+  maf_b <- maf(full_geno) 
+  maf_b <- as.numeric(sprintf("%.8f", maf_b))
+
+  # add to results df
+  lof_tests <- rbind(lof_tests, data.frame(
+    variant = str_remove(v, "_.*"),
+    maf_sample = format(maf_b, scientific = FALSE, digits = 6),
+    maf_overall = NA,
+    info = NA
+  ))
+}
+
+## Read in overall MAFs from snp-stats file
+for (i in 1:nrow(lof_tests)) {
+  var <- lof_tests$variant[i]
+  maf_row <- snp_stats[snp_stats$rsid == var, ]
+  
+  if (nrow(maf_row) > 0) {
+    lof_tests$maf_overall[i] <- maf_row$minor_allele_frequency[1]
+    lof_tests$info[i] <- maf_row$info[1]
+  } else {
+    lof_tests$maf_overall[i] <- NA
+    lof_tests$info[i] <- NA
+  }
+}
+
+print(lof_tests) # we can only check those with MAF > 0.001
+                 # these are the only ones that contribute to homozygotes
+#      variant maf_sample maf_overall info
+# 1  rs41267811 0.00012881          NA   NA
+# 2 rs143431368 0.00247017  0.00245246    1
+# 3 rs200099994 0.00019448          NA   NA
+# 4  rs41267813 0.00112395          NA   NA
+# 5  rs41272114  0.0381866  0.03823390    1
+# 6  rs41259144  0.0106536  0.01050100    1
+# 7 rs559580002 0.00002778          NA   NA
+
+# Remaining variants mafs were also checked against the UKB allele frequency
+# browser e.g. https://afb.ukbiobank.ac.uk/variant/chr6-160548552-G-C
 
 ################################################################################
 # Descriptive stats and plots
@@ -191,18 +276,18 @@ for (outcome in outcome_list) {
 
   if (outcome %in% colnames(lof_dataset)) {
     subset_df <- lof_dataset[lof_dataset[[outcome]] == 1, ]
-    # Count cases per quintile
+    # Count cases per genotype group
     counts <- table(factor(subset_df$lof_hom, levels = c(0, 1)))
   } else {
-    subset_df <- data.frame()
-    quintile_counts <- rep(NA, 5)
+    # Skip outcomes not in dataset
+    next
   }
 
   # Create a df row
   count_row <- data.frame(
     outcome = outcome,
-    lof_hom = counts[2],
-    lof_het_wt = counts[1]
+    lof_hom = counts[["1"]],
+    lof_het_wt = counts[["0"]]
   )
   
   # Append to count list

@@ -35,6 +35,9 @@ system('dx download -f data/UKB_RAP/derived/linker_app2393.csv', intern = TRUE)
 # In-house derived list of European participants
 system('dx download -f data/UKB_RAP/derived/data.chr1-22.sample', intern = TRUE)
 
+# In-house derived list of related participants to exclude
+system('dx download -f data/UKB_RAP/derived/data.minimal_relateds.plink.txt', intern = TRUE)
+
 # ICD9/10 main diagnoses and lp(a)
 system('dx download -f data/UKB_RAP/extracted_data.tsv', intern = TRUE)
 
@@ -49,6 +52,7 @@ derived_data <- readr::read_tsv("Phenotype_MRPREG.txt")
 derived_data_mat <- readr::read_tsv("phenotypic_data_maternity.txt")
 linker <- readr::read_csv("linker_app2393.csv") %>% rename(eid = app)
 eur_list <- readr::read_table("data.chr1-22.sample") %>% select(FID = ID_1)
+related_list <- readr::read_table("data.minimal_relateds.plink.txt", col_names = FALSE) %>% rename(FID = X1)
 out_info <- readxl::read_excel("info.xlsx")
 extdat <- readr::read_tsv("extracted_data.tsv")
 source("RAP_functions.R")
@@ -95,25 +99,23 @@ dataset1 <- dataset %>%
     ICD9 = 'p41203',          # HES main ICD9 codes
     lpa_mes = 'p30790_i0',    # Lipoprotein(a) measurements
     lpa_report = 'p30796_i0', # Lipoprotein(a) reportability - contains if too low/high to measure
-    geno_batch = 'p22000',    # Genotyping batch
-    used_in_pc = 'p22020'     # Used in genetic principal components - a (maximal) subset of unrelated participants after applying some QC filtering as described in the Supplement of Bycroft et al., 2018.
+    geno_batch = 'p22000'     # Genotyping batch
   )
 
 dim(dataset1)
-# [1] 253457     66
+# [1] 253457     68
 
 ## Restrict participants to those of 
-#    - European ancestry (10.5523/bris.pnoat8cxo0u52p6ynfaekeigi) AND 
-#    - Unrelated (per Bycroft et al., 2018)
+#    - European ancestry (10.5523/bris.pnoat8cxo0u52p6ynfaekeigi, section 5.1) 
+#    AND 
+#    - Unrelated (10.5523/bris.pnoat8cxo0u52p6ynfaekeigi, section 2.3)
 
 dataset2 <- dataset1 %>%
-  dplyr::filter(
-    used_in_pc == 1 &
-    FID %in% eur_list$FID
-  )
+  dplyr::filter(FID %in% eur_list$FID) %>%
+  dplyr::filter(!FID %in% related_list$FID)
 
 dim(dataset2)
-# [1] 175485     66
+# [1] 199049     68
 
 ################################################################################
 # Create thrombotic event during pregnancy variables from ICD codes

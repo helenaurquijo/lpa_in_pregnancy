@@ -94,7 +94,9 @@ gs_dataset <- dataset %>%
     gs = scale(lpa_gs, )[,1],
 # Generate GS quintiles 
     gs_quint = ntile(gs, 5)
-  )
+  ) %>%
+# remove NAs from GS - 195 participants
+  dplyr::filter(!is.na(gs))
 
 ## Visualise distribution of GS
 png("lpa_gs_distribution.png", width = 800, height = 600)
@@ -104,9 +106,11 @@ summary(gs_dataset$gs)
 
 ## Check GS quintiles
 table(gs_dataset$gs_quint)
+#     1     2     3     4     5 
+# 39771 39771 39771 39771 39770 
 
 dim(gs_dataset)
-# [1] 175485     67
+# [1] 198854     67
 
 ## Save GS distribution plot
 system('dx upload lpa_gs_distribution.png --path results/genetic_score/', intern = TRUE)
@@ -344,7 +348,7 @@ print(summary_by_quintile)
 
 ## Save summary
 readr::write_tsv(summary_by_quintile, "summary_by_gs_quintile.tsv")
-system('dx upload summary_by_quintile.tsv --path results/genetic_score/', intern = TRUE)
+system('dx upload summary_by_gs_quintile.tsv --path results/genetic_score/', intern = TRUE)
 
 ################################################################################
 # Association testing - overall and quintile-stratified analyses
@@ -371,7 +375,7 @@ results <- purrr::pmap_dfr(
   data = gs_dataset,
   exp = "gs_quint",
   ref_var = "5"
-) %>% 
+)
 
 final_res <- results %>%
   mutate(FDR = p.adjust(p_value, method = "fdr")) %>%
@@ -397,11 +401,10 @@ system('dx upload lpa_gs_x_appo.tsv --path results/genetic_score/', intern = TRU
 # Plot results
 
 to_plot <- final_res %>%
-  left_join(., out_info, by = "outcome") %>%
   mutate(
     quintile = as.character(quintile),
   ) %>%
-  filter(
+  dplyr::filter(
     !is.na(outcome_full),
     outcome != "cad_event"
   )
@@ -411,7 +414,7 @@ colours <- c(
   "Q1" = '#001affff',
   "Q2" = '#458cfdff',
   "Q3" = '#aa76f8ff',
-  "Q4" = '#ff4e5fff',
+  "Q4" = '#ff4e5fff'
 )
 
 ## Plot 
