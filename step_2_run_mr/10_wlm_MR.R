@@ -56,11 +56,34 @@ exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
   ) %>%
   mutate(exposure = "Lp(a)")
 
-## Load outcome file
+## Load proxies info
+proxies_info <- fread(paste0(iv_path, "proxies_info_main_lpa.txt"))
+
+## Load outcome file and get proxies where needed
+
+# duos
 duo_dat <- fread(paste0(out_path, "/duos_out_dat.txt")) %>% 
-  filter(!is.na(se_mat_donuts)) # Duos
+  filter(!is.na(se_mat_donuts)) %>%
+  mutate(
+    proxied = FALSE,
+    proxy = NA
+  ) 
+
+duo_dat <- map(unique(duo_dat$Phenotype), 
+  ~replace_missing_with_proxies(out = .x, exp_dat, duo_dat, proxies_info, outcome_col = "Phenotype")) %>% 
+  bind_rows()
+
+# trios
 trio_dat <- fread(paste0(out_path, "/trios_out_dat.txt")) %>%
-  filter(!is.na(se_mat_donuts)) # Trios
+  filter(!is.na(se_mat_donuts)) %>%
+  mutate(
+    proxied = FALSE,
+    proxy = NA
+  ) 
+
+trio_dat <- map(unique(trio_dat$Phenotype), 
+  ~replace_missing_with_proxies(out = .x, exp_dat, trio_dat, proxies_info, outcome_col = "Phenotype")) %>% 
+  bind_rows()
 
 ## Load WLM conmal_any data
 conmal_wlm <- Sys.getenv("conmalwlm")
@@ -72,7 +95,15 @@ conmal_duo_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_duos_mum-child.txt
     analyses = "duos_mum-child",
     study = "MOBA") %>%
   filter(SNP %in% exp_dat$SNP) %>%
-  data.frame()
+  data.frame() %>%
+  mutate(
+    proxied = FALSE,
+    proxy = NA
+  ) 
+
+conmal_duo_dat <- map(unique(conmal_duo_dat$Phenotype), 
+  ~replace_missing_with_proxies(out = .x, exp_dat, conmal_duo_dat, proxies_info, outcome_col = "Phenotype")) %>% 
+  bind_rows()
 
 conmal_trio_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_trios.txt.gz")) %>%
   mutate(
@@ -81,11 +112,17 @@ conmal_trio_dat <- fread(paste0(conmal_wlm, "conmal_any_donuts_trios.txt.gz")) %
     analyses = "trios",
     study = "MOBA") %>%
   filter(SNP %in% exp_dat$SNP) %>%
-  data.frame()
+  data.frame() %>%
+  mutate(
+    proxied = FALSE,
+    proxy = NA
+  ) 
+
+conmal_trio_dat <- replace_missing_with_proxies(out = "conmal_any", exp_dat, conmal_trio_dat, proxies_info, outcome_col = "Phenotype")
 
 ## Append conmal to duo and trio datasets
 duo_dat <- rbind(duo_dat, conmal_duo_dat)
-trio_dat <- rbind(trio_dat, conmal_trio_dat)
+trio_datt <- rbind(trio_dat, conmal_trio_dat)
 
 ################################################################################
 # Format data

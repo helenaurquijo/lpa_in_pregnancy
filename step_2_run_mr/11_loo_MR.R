@@ -54,12 +54,23 @@ exp_dat <- fread(paste0(iv_path, "exp_dat_main_lpa.txt")) %>%
   ) %>%
   mutate(exposure = "Lp(a)")
 
+## Load proxies info
+proxies_info <- fread(paste0(iv_path, "proxies_info_main_lpa.txt"))
+
+## Get outcome data by study and get proxies where needed
 stu_outdat <- fread(paste0(out_path, "/stu_out_dat.txt")) %>% 
   dplyr::filter(Phenotype %in% out_info$outcome) %>%
   data.frame() %>% 
   split(., .$study) %>%
   map(., ~data.frame(.)) %>%
-  map(., ~format_data(., type = "outcome"))
+  map(., ~format_data(., type = "outcome")) %>%
+  map(., ~mutate(., proxied = FALSE, proxy = NA))
+
+stu_outdat <- stu_outdat %>%
+  map(., function(out_dat) {
+    map(unique(out_dat$outcome), ~replace_missing_with_proxies(out = .x, exp_dat, out_dat, proxies_info)) %>%
+    bind_rows()
+  })
   # N.B. conmal_any and pph not included as they only have one study
 
 ## Print outcomes for study
