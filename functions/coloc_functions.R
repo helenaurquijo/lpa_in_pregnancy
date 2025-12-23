@@ -13,6 +13,9 @@ format_coloc <- function(lipid, appo) {
 
   appo_df <- outcome_dat[[appo]]
   
+  # Harmonisation step is for keeping only SNPs present in both datasets and 
+  # keeping all data in the same df. Alleles do not need to be aligned for standard coloc
+  # https://pmc.ncbi.nlm.nih.gov/articles/PMC7192519/
   df <- harmonise_data(lipid_df, appo_df, action = 1) %>% # keeping palindromic snps  
     # remove missing data
     filter(
