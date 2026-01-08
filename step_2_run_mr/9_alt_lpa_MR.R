@@ -129,24 +129,47 @@ fwrite(
 ## Load plotting functions
 source(paste0(projectdir, "/scripts/functions/plot_functions.R"))
 
-## Load main results for comparison
-main_res <- fread(paste0(projectdir, "/results/main_analysis/main_mr_res.txt")) %>%
-  as.data.frame() %>%
-  mutate(exposure = "LPA, immunoturbidimetric assay (main)")
-
-to_plot <- bind_rows(main_res, res) %>%
+## Prep results for plotting
+to_plot <- res %>%
   arrange(match(outcome, out_info$outcome))
 
-## Plot and save
-colours <- qualitative_hcl(3, palette = "Dark 3")
+## Plot and save - separate plots for each dataset as
+#  the scales are different
+
+colours <- qualitative_hcl(2, palette = "Dark 3")[1]
 
 suppressWarnings(
-  plot_mr_special(to_plot, "exposure", scaled = TRUE) %>%
-    ggsave(., 
-      file = "alt_lpa_mr_res.png",
-      width = 14,
-      height = 8,
-      dpi = 300)
+  plot_mr_special(
+    filter(to_plot, exposure == "LPA, apo(a) isoform-adjusted (mg/dL)"),
+    "exposure",
+    scaled = TRUE,
+    xlab_cont = "Mean difference in trait (95% CI)",
+    xlab_bin = "Odds ratio for APPO risk (95% CI)",
+    legend_bottom = TRUE
+    ) %>%
+  ggsave(., 
+    file = "alt_lpa_mr_res_mack.png",
+    width = 7,
+    height = 8,
+    dpi = 300)
+)
+
+colours <- qualitative_hcl(2, palette = "Dark 3")[2]
+
+suppressWarnings(
+  plot_mr_special(
+    filter(to_plot, exposure == "LPA, Olink UKB-PPP") ,
+    "exposure",
+    scaled = TRUE,
+    xlab_cont = "Mean difference in trait (95% CI)",
+    xlab_bin = "Odds ratio for APPO risk (95% CI)",
+    legend_bottom = TRUE
+    ) %>%
+  ggsave(., 
+    file = "alt_lpa_mr_res_olink.png",
+    width = 7,
+    height = 8,
+    dpi = 300)
 )
 
 q("no")

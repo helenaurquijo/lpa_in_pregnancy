@@ -99,22 +99,34 @@ plot_mr <- function(dat, scaled = FALSE){
 ################################################################################
 # Function to create and save forest plots for MR results with different labels
 
-plot_mr_special <- function(dat, adjustment, scaled = FALSE){
+plot_mr_special <- function(dat, adjustment, scaled = FALSE, xlab_cont = NULL, xlab_bin = NULL, legend_bottom = FALSE){
 
   # Set estimate and se column names and x-axis labels based on scaled parameter
   estimate_col <- if (scaled) "b_scaled" else "b"
   se_col <- if (scaled) "se_scaled" else "se"
   
-  if (scaled) {
-    xlab_cont <- "Mean different in trait (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
-    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
-  } else {
-    xlab_cont <- "Mean different in trait (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
-    xlab_bin <- "Odds ratio for APPO risk (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+  # Use custom labels if provided, otherwise use defaults
+  if (is.null(xlab_cont)) {
+    xlab_cont <- if (scaled) {
+      "Mean different in trait (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+    } else {
+      "Mean different in trait (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+    }
+  }
+  
+  if (is.null(xlab_bin)) {
+    xlab_bin <- if (scaled) {
+      "Odds ratio for APPO risk (95% CI) per 210 nmol/L decrease in lipoprotein(a)"
+    } else {
+      "Odds ratio for APPO risk (95% CI) per 1 nmol/L decrease in lipoprotein(a)"
+    }
   }
 
   my_scale <- colours[1:length(unique(dat[[adjustment]]))]
   names(my_scale) <- unique(dat[[adjustment]])
+  
+  # Set legend position based on flag
+  legend_pos <- if (legend_bottom) "bottom" else "right"
 
   cont <- dat %>%
     filter(cat == "cont") %>%
@@ -131,7 +143,7 @@ plot_mr_special <- function(dat, adjustment, scaled = FALSE){
     theme(
       plot.title = element_text(hjust = 0.5),
       panel.background = element_blank(),
-      legend.position = "none"
+      legend.position = legend_pos
     ) + ggtitle("Continuous outcomes") +
     scale_color_manual(values = my_scale)
   
@@ -149,7 +161,8 @@ plot_mr_special <- function(dat, adjustment, scaled = FALSE){
     ) +
     theme(
       plot.title = element_text(hjust = 0.5),
-      panel.background = element_blank()
+      panel.background = element_blank(),
+      legend.position = legend_pos
     ) + ggtitle("Binary outcomes") +
     scale_color_manual(values = my_scale)
   
