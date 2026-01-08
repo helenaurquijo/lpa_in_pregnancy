@@ -125,8 +125,9 @@ plot_mr_special <- function(dat, adjustment, scaled = FALSE, xlab_cont = NULL, x
   my_scale <- colours[1:length(unique(dat[[adjustment]]))]
   names(my_scale) <- unique(dat[[adjustment]])
   
-  # Set legend position based on flag
-  legend_pos <- if (legend_bottom) "bottom" else "right"
+  # Set legend positions: if bottom, show on cont plot; if right, show on bin plot
+  cont_legend_pos <- if (legend_bottom) "bottom" else "none"
+  bin_legend_pos <- if (legend_bottom) "none" else "right"
 
   cont <- dat %>%
     filter(cat == "cont") %>%
@@ -143,7 +144,7 @@ plot_mr_special <- function(dat, adjustment, scaled = FALSE, xlab_cont = NULL, x
     theme(
       plot.title = element_text(hjust = 0.5),
       panel.background = element_blank(),
-      legend.position = legend_pos
+      legend.position = cont_legend_pos
     ) + ggtitle("Continuous outcomes") +
     scale_color_manual(values = my_scale)
   
@@ -162,7 +163,7 @@ plot_mr_special <- function(dat, adjustment, scaled = FALSE, xlab_cont = NULL, x
     theme(
       plot.title = element_text(hjust = 0.5),
       panel.background = element_blank(),
-      legend.position = legend_pos
+      legend.position = bin_legend_pos
     ) + ggtitle("Binary outcomes") +
     scale_color_manual(values = my_scale)
   
