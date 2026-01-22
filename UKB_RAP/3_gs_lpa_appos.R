@@ -418,12 +418,12 @@ colours <- c(
 )
 
 ## Plot 
-png("lpa_gs_x_appo.png", width = 14, height = 13, units = "in", res = 300)
+png("lpa_gs_x_appo.png", width = 14, height = 13, units = "in", res = 400)
 suppressWarnings(plot_strat(to_plot, "quintile"))
 dev.off()
 
 ## Plot without thrombotic events
-png("lpa_gs_x_appo_no_thrombotic.png", width = 14, height = 13, units = "in", res = 300)
+png("lpa_gs_x_appo_no_thrombotic.png", width = 14, height = 13, units = "in", res = 400)
 suppressWarnings(
   plot_strat(
     to_plot %>% filter(!outcome %in% c("any_event", "venous_event", "atheros_event")), 

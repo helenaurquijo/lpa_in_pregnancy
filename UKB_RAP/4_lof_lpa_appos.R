@@ -424,7 +424,8 @@ suppressWarnings(
     theme(
       plot.title = element_text(hjust = 0.5),
       panel.background = element_blank(),
-      legend.position = "none"
+      legend.position = "none",
+      plot.margin = margin(5, 5, 5, 10, "mm")
     ) + ggtitle("Continuous outcomes") +
     scale_color_manual(values = colours)
 )
@@ -442,12 +443,13 @@ suppressWarnings(
     ) +
     theme(
       plot.title = element_text(hjust = 0.5),
-      panel.background = element_blank()
+      panel.background = element_blank(),
+      plot.margin = margin(5, 5, 5, 10, "mm")
     ) + ggtitle("Binary outcomes") +
     scale_color_manual(values = colours)
 )
 
-png("lpa_lof_x_appo.png", width = 14, height = 12, units = "in", res = 300)  
+png("lpa_lof_x_appo.png", width = 14, height = 12, units = "in", res = 400)  
 
 suppressWarnings(
   cowplot::plot_grid(
