@@ -202,43 +202,49 @@ replace_missing_with_proxies <- function(out, exposure_dat, outcome_dat, proxies
 # Function to harmonise LD matrix against summary data 
 
 ## Adapted from harmonise_ld_dat function in TwoSampleMR R package
-#  changed so that it sorts SNP names in ld and x objects before comparing them
 
-harmonise_ld_dat_me <- function (x, ld) {
-  snpnames <- do.call(rbind, strsplit(rownames(ld), split = "_"))
-  i1 <- snpnames[, 1] %in% x$SNP
-  ld <- ld[i1, i1]
-  snpnames <- snpnames[i1, ]
-  i2 <- x$SNP %in% snpnames[, 1]
-  x <- x[i2, ]
-  # stopifnot(all(sort(snpnames[, 1]) == sort(x$SNP)))
+harmonise_ld_dat_me<-function (x, ld) {
+  
+  snpnames <- do.call(rbind, strsplit(rownames(ld), split = "_")) #snpnames comes from LD matrix
+
+  common_snps <- intersect(snpnames[, 1], x$SNP) # this creates a vector of SNPs that are in both the ld mat and the summary data, in the order they appear in the ld matrix
+
+  ld <- ld[snpnames[, 1] %in% common_snps, snpnames[, 1] %in% common_snps, drop = FALSE] # include only SNPs in the ld matrix that are also in the summary data 
+
+  snpnames <- snpnames[snpnames[, 1] %in% common_snps, , drop = FALSE] # include only SNPs in the snpnames df that are also in the summary data
+
+  x <- x[x$SNP %in% common_snps, , drop = FALSE] # include only SNPs in the summary data that are also in the ld matrix
+
+  x <- x[match(snpnames[, 1], x$SNP), , drop = FALSE] # this reorders the summary data df to match the order of the SNPs in the ld matrix, which is important for the next step
+
+  stopifnot(all(snpnames[, 1] == x$SNP)) # this is the original check in the official function which ensures ld and x have the same SNPs in the SAME ORDER
+
   x$effect_allele.exposure <- as.character(x$effect_allele.exposure)
   x$other_allele.exposure <- as.character(x$other_allele.exposure)
+
   snpnames <- data.frame(snpnames, stringsAsFactors = FALSE)
-  snpnames <- merge(
-    subset(x, select = c(SNP, effect_allele.exposure, other_allele.exposure)),
-    snpnames,
-    by.x = "SNP",
-    by.y = "X1"
-  )
-  snpnames <- snpnames[match(x$SNP, snpnames$SNP), ]
-  snpnames$keep <- (
-    snpnames$X2 == snpnames$effect_allele.exposure &
-    snpnames$X3 == snpnames$other_allele.exposure
-  ) | (
-    snpnames$X3 == snpnames$effect_allele.exposure &
-    snpnames$X2 == snpnames$other_allele.exposure
-  )
+  snpnames <- merge(subset(x, select = c(SNP, effect_allele.exposure, 
+                                         other_allele.exposure)), snpnames, by.x = "SNP", by.y = "X1") # this merges the alleles from the summary data with the snpnames from the ld matrix - SNPs are reordered by alphabetical order of the SNP names
+
+  snpnames <- snpnames[match(x$SNP, snpnames$SNP), ] #this reorders the snpnames df to match the order of the SNPs in x (summary data), which should match the order of ld as per the check above
+
+  # at this point snpnames follows the order of x but not ld
+
+  snpnames$keep <- ( #identifying cases where the alleles in the summary data and the ld matrix match, regardless of order
+    snpnames$X2 == snpnames$effect_allele.exposure & 
+                    snpnames$X3 == snpnames$other_allele.exposure) | 
+    (snpnames$X3 ==  snpnames$effect_allele.exposure & 
+                    snpnames$X2 == snpnames$other_allele.exposure)
+
   if (nrow(x) == 0) {
     message(" - none of the SNPs could be aligned to the LD reference panel")
     return(NULL)
   }
   if (any(!snpnames$keep)) {
-    message(
-      " - the following SNPs could not be aligned to the LD reference panel: \n- ",
-      paste(subset(snpnames, !keep)$SNP, collapse = "\n - ")
-    )
+    message(" - the following SNPs could not be aligned to the LD reference panel: \n- ", 
+            paste(subset(snpnames, !keep)$SNP, collapse = "\n - "))
   }
+
   snpnames$flip1 <- snpnames$X2 != snpnames$effect_allele.exposure
   x <- subset(x, SNP %in% snpnames$SNP)
   temp1 <- x$effect_allele.exposure[snpnames$flip1]
@@ -247,16 +253,20 @@ harmonise_ld_dat_me <- function (x, ld) {
   x$beta.outcome[snpnames$flip1] <- x$beta.outcome[snpnames$flip1] * -1
   x$effect_allele.exposure[snpnames$flip1] <- temp2
   x$other_allele.exposure[snpnames$flip1] <- temp1
-  rownames(ld) <- snpnames$SNP
+
+  rownames(ld) <- snpnames$SNP #SNPs in snpnames are used to RENAME the rows and columns of the ld matrix, but the order of the SNPs in the ld matrix is not changed, so they are still in their original order
   colnames(ld) <- snpnames$SNP
+
   if (any(!snpnames$keep)) {
     message("Removing ", sum(!snpnames$keep), " variants due to harmonisation issues")
     ld <- ld[snpnames$keep, snpnames$keep]
     x <- x[snpnames$keep, ]
   }
-  if (length(ld) > 1) {
+  if(length(ld)>1)
+  {
     return(list(x = x, ld = ld))
-  } else {
+  }
+  else{
     return(NULL)
   }
 }
